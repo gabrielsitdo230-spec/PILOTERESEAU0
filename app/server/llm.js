@@ -8,12 +8,16 @@
  *   réellement la base de connaissances (recherche par pertinence).
  */
 'use strict';
+const connectors = require('./connectors');
 
-const config = {
-  apiKey: process.env['LLM_' + 'API_KEY'] || '',
-  baseUrl: (process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
-  model: process.env.LLM_MODEL || 'gpt-4o-mini',
-};
+const config = { apiKey: '', baseUrl: '', model: '' };
+function reload() {
+  config.apiKey = connectors.get('ai', 'apiKey');
+  config.baseUrl = (connectors.get('ai', 'baseUrl') || 'https://api.openai.com/v1').replace(/\/$/, '');
+  config.model = connectors.get('ai', 'model') || 'gpt-4o-mini';
+  return config;
+}
+reload();
 
 function hasRealLLM() { return Boolean(config.apiKey); }
 
@@ -52,4 +56,4 @@ async function callRealLLM(systemPrompt, history) {
   }
 }
 
-module.exports = { hasRealLLM, callRealLLM, config };
+module.exports = { hasRealLLM, callRealLLM, config, reload };

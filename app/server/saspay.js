@@ -6,15 +6,19 @@
  */
 'use strict';
 const crypto = require('crypto');
+const connectors = require('./connectors');
 
 const envKey = (...parts) => process.env[parts.join('_')] || '';
-const cfg = {
-  secretKey: envKey('SASPAY', 'SECRET', 'KEY') || envKey('SASPAY', 'API', 'KEY'),
-  webhookSecret: envKey('SASPAY', 'WEBHOOK', 'SECRET'),
-  baseUrl: (process.env.SASPAY_BASE_URL || 'https://api.saspay.me/api/v1').replace(/\/$/, ''),
-  country: process.env.SASPAY_COUNTRY || 'CD',
-  publicBaseUrl: (process.env.PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
-};
+const cfg = { secretKey: '', webhookSecret: '', baseUrl: '', country: 'CD', publicBaseUrl: '' };
+function reload() {
+  cfg.secretKey = connectors.get('saspay', 'secretKey');
+  cfg.webhookSecret = connectors.get('saspay', 'webhookSecret');
+  cfg.baseUrl = (process.env.SASPAY_BASE_URL || 'https://api.saspay.me/api/v1').replace(/\/$/, '');
+  cfg.country = connectors.get('saspay', 'country') || 'CD';
+  cfg.publicBaseUrl = (connectors.get('saspay', 'publicBaseUrl') || process.env.PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
+  return cfg;
+}
+reload();
 function isLive() { return Boolean(cfg.secretKey); }
 function mode() { return cfg.secretKey.startsWith('sk_live') ? 'live' : cfg.secretKey ? 'test' : 'off'; }
 
@@ -80,4 +84,4 @@ function isValidWebhook(rawBody, signatureHeader, timestampHeader) {
   } catch { return false; }
 }
 
-module.exports = { cfg, isLive, mode, createCheckoutSession, getCheckoutStatus, verifyPayment, isSuccessStatus, isFailedStatus, isValidWebhook };
+module.exports = { cfg, reload, isLive, mode, createCheckoutSession, getCheckoutStatus, verifyPayment, isSuccessStatus, isFailedStatus, isValidWebhook };

@@ -32,6 +32,7 @@ const platform = require('./platform');
 const tiktok = require('./tiktok');
 const auth = require('./auth');
 const saspay = require('./saspay');
+const connectors = require('./connectors');
 
 // Clé super-admin : à définir dans .env (ADMIN_KEY). Valeur de démo locale sinon.
 const ADMIN_KEY = process.env.ADMIN_KEY || 'pilote-admin-demo';
@@ -144,6 +145,45 @@ function readBody(req) {
     req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch { reject(new Error('JSON invalide')); } });
     req.on('error', reject);
   });
+}
+
+
+/** Teste un connecteur avec les valeurs enregistrées (aucun secret ne sort). */
+async function testConnector(provider) {
+  if (provider === 'meta') {
+    if (!meta.isLive()) return { ok: false, message: 'Il manque l\'App ID et/ou le Secret Meta.' };
+    const appToken = meta.cfg.appId + '|' + meta.cfg.appSecret;
+    const r = await fetch(`https://graph.facebook.com/v21.0/${meta.cfg.appId}?fields=name&access_token=${encodeURIComponent(appToken)}`);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, message: 'Meta refuse ces identifiants : ' + (d.error?.message || r.status) };
+    return { ok: true, message: `Meta répond : application « ${d.name || meta.cfg.appId} » reconnue. Vous pouvez connecter vos Pages.` };
+  }
+  if (provider === 'tiktok') {
+    if (!tiktok.isLive()) return { ok: false, message: 'Il manque la Client Key et/ou le Secret TikTok.' };
+    const u = tiktok.buildOAuthUrl('test');
+    return { ok: Boolean(u), message: u ? 'TikTok prêt : le bouton « Connecter avec TikTok » ouvrira la vraie autorisation. Le test complet se fait en connectant un compte.' : 'Configuration TikTok incomplète.' };
+  }
+  if (provider === 'ai') {
+    if (!llm.hasRealLLM()) return { ok: false, message: 'Aucune clé IA enregistrée.' };
+    const r = await fetch(llm.config.baseUrl + '/models', { headers: { Authorization: 'Bearer ' + llm.config.apiKey } });
+    if (!r.ok) return { ok: false, message: 'Le fournisseur IA refuse cette clé (HTTP ' + r.status + ').' };
+    return { ok: true, message: `IA connectée (modèle : ${llm.config.model}). Le Playground et les assistants utiliseront le vrai modèle.` };
+  }
+  if (provider === 'saspay') {
+    if (!saspay.isLive()) return { ok: false, message: 'Aucune clé SasPay enregistrée.' };
+    const r = await fetch(saspay.cfg.baseUrl + '/countries/', { headers: { Authorization: 'Bearer ' + saspay.cfg.secretKey } });
+    if (r.status === 401) return { ok: false, message: 'SasPay refuse cette clé (401). Vérifiez sk_test_/sk_live_.' };
+    return { ok: true, message: `SasPay joint (mode ${saspay.mode()}). Pensez au secret du webhook pour valider les paiements.` };
+  }
+  if (provider === 'supabase') {
+    const url = connectors.get('supabase', 'url');
+    if (!url) return { ok: false, message: 'Aucune URL Supabase enregistrée.' };
+    try {
+      const r = await fetch(url.replace(/\/$/, '') + '/rest/v1/', { headers: { apikey: connectors.get('supabase', 'anonKey') || 'test' } });
+      return { ok: r.status < 500, message: r.status < 500 ? 'Supabase répond. Créez les tables avec supabase/schema.sql si ce n\'est pas fait.' : 'Supabase répond en erreur (' + r.status + ').' };
+    } catch (e) { return { ok: false, message: 'Supabase injoignable : ' + e.message }; }
+  }
+  return { ok: false, message: 'Connecteur inconnu.' };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -374,6 +414,45 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { received: true, event, results: confirmed.map(c => ({ ref: c.ref, statut: c.payment ? c.payment.status : 'erreur', annule: Boolean(c.cancelled) })) });
     }
     if (p === '/api/payments/history' && req.method === 'GET') { const a = requireAuth(req, res); if (!a) return; return json(res, 200, { payments: payments.list(a.workspaceId) }); }
+
+
+    // ---------- CONNECTEURS API (emplacements des clés, Admin privé uniquement) ----------
+    if (p === '/api/admin/connectors' && req.method === 'GET') {
+      if (!requireAdmin(req, res)) return;
+      const base = (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '') || ('http://' + req.headers.host);
+      return json(res, 200, {
+        providers: connectors.adminView(),
+        callbacks: {
+          metaWebhook: base + '/webhooks/meta',
+          metaOAuth: base + '/auth/meta/callback',
+          tiktokWebhook: base + '/webhooks/tiktok',
+          tiktokOAuth: base + '/auth/tiktok/callback',
+          saspayWebhook: base + '/webhooks/saspay',
+          paymentsWebhook: base + '/webhooks/payments',
+        },
+        encryptionReady: connectors.adminView().meta.encryptionReady,
+      });
+    }
+    if (p.startsWith('/api/admin/connectors/') && req.method === 'POST') {
+      if (!requireAdmin(req, res)) return;
+      const parts = p.split('/'); const provider = decodeURIComponent(parts[4]); const action = parts[5];
+      const b = await readBody(req);
+      if (action === 'save') {
+        const r = connectors.update(provider, b.fields || {});
+        if (r.error) return json(res, 400, { error: r.error });
+        // Activation immédiate, sans redémarrage
+        try { meta.reload(); } catch {}
+        try { tiktok.reload(); } catch {}
+        try { llm.reload(); } catch {}
+        try { saspay.reload(); } catch {}
+        return json(res, 200, { provider, view: r.view, active: { meta: meta.isLive(), tiktok: tiktok.isLive(), ia: llm.hasRealLLM(), saspay: saspay.isLive(), saspayMode: saspay.mode() } });
+      }
+      if (action === 'test') {
+        try { return json(res, 200, await testConnector(provider)); }
+        catch (e) { return json(res, 200, { ok: false, message: e.message }); }
+      }
+      return json(res, 404, { error: 'Action connecteur inconnue' });
+    }
 
     // ---------- PAGE ADMIN : tout gérer + PRIX MODIFIABLES MANUELLEMENT ----------
     if (p === '/api/admin/login' && req.method === 'POST') {

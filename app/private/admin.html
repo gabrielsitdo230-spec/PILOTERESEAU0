@@ -66,6 +66,7 @@ label{font-size:12px;font-weight:700;color:var(--gris);display:block;margin-bott
       <button data-tab="clients" onclick="tab('clients')">👥 Clients & Crédits</button>
       <button data-tab="reseaux" onclick="tab('reseaux')">🔗 Réseaux & Messages</button>
       <button data-tab="paiements" onclick="tab('paiements')">💰 Paiements</button>
+      <button data-tab="connecteurs" onclick="tab('connecteurs')">🔌 Connecteurs API</button>
       <button data-tab="systeme" onclick="tab('systeme')">⚙️ Système</button>
     </div>
     <div id="contenu"></div>
@@ -96,10 +97,11 @@ function esc(s){ return String(s??'').replace(/</g,'&lt;'); }
 
 async function chargerTout(){
   try{
-    const [ov, ws, acc, pay, msg] = await Promise.all([
-      api('/api/admin/overview'), api('/api/admin/workspaces'), api('/api/admin/accounts'), api('/api/admin/payments'), api('/api/admin/messages')
+    const [ov, ws, acc, pay, msg, conn] = await Promise.all([
+      api('/api/admin/overview'), api('/api/admin/workspaces'), api('/api/admin/accounts'), api('/api/admin/payments'), api('/api/admin/messages'),
+      api('/api/admin/connectors').catch(()=>({ providers:{}, callbacks:{} }))
     ]);
-    CACHE = { ov, ws: ws.workspaces, acc: acc.accounts, pay: pay.payments, rev: pay.revenue, msg: msg.messages, queue: msg.queue };
+    CACHE = { ov, ws: ws.workspaces, acc: acc.accounts, pay: pay.payments, rev: pay.revenue, msg: msg.messages, queue: msg.queue, conn: conn.providers, callbacks: conn.callbacks, connChiffrement: conn.encryptionReady };
     render();
   }catch(e){ if(/401|refus/i.test(e.message)) { location.href='/admin'; return; } toast('⚠️ '+e.message); }
 }
@@ -112,6 +114,76 @@ function render(){
   if(TAB==='reseaux') return renderReseaux(c);
   if(TAB==='paiements') return renderPaiements(c);
   if(TAB==='systeme') return renderSysteme(c);
+  if(TAB==='connecteurs') return renderConnecteurs(c);
+}
+
+const CHAMPS = {
+  meta: { appId:'App ID', appSecret:'App Secret', verifyToken:'Token de vérification webhook (inventé par vous)', whatsappToken:'Token WhatsApp Business', redirectUri:'URI de retour OAuth' },
+  tiktok: { clientKey:'Client Key', clientSecret:'Client Secret', redirectUri:'URI de retour OAuth', webhookSecret:'Secret du webhook' },
+  ai: { apiKey:'Clé API du fournisseur IA', baseUrl:'Adresse API (défaut OpenAI)', model:'Modèle (ex. gpt-4o-mini)' },
+  saspay: { secretKey:'Clé secrète SasPay (sk_test_ / sk_live_)', webhookSecret:'Secret de signature du webhook', country:'Pays par défaut (ex. CD)', publicBaseUrl:'Adresse publique de la plateforme' },
+  supabase: { url:'URL du projet', anonKey:'Clé anon publique', serviceRoleKey:'Clé service_role (serveur uniquement)' },
+};
+const LIENS = {
+  meta:'https://developers.facebook.com/apps/',
+  tiktok:'https://developers.tiktok.com/apps',
+  ai:'https://platform.openai.com/api-keys',
+  saspay:'https://app.saspay.me',
+  supabase:'https://supabase.com/dashboard',
+};
+function renderConnecteurs(c){
+  const provs = CACHE.conn || {};
+  const cb = CACHE.callbacks || {};
+  c.innerHTML = `
+  <div class="aide">🔌 <b>Connecteurs API — branchez chaque réseau ici.</b> Collez les clés de chaque fournisseur, cliquez <b>Enregistrer</b> puis <b>Tester</b>. Activation immédiate, sans redémarrer. Vos secrets sont <b>chiffrés</b> et ne s'affichent jamais en clair.</div>
+  ${CACHE.connChiffrement===false?'<div class="erreur">⚠️ <b>Chiffrement non configuré :</b> définissez <span class="mono">TOKEN_ENCRYPTION_KEY</span> dans le .env du serveur (voir checklist Étape 6) pour chiffrer les clés en AES-256. En attendant, ne mettez que des clés de TEST ici.</div>':''}
+  <div class="carte"><h3>📋 Adresses à déclarer chez les fournisseurs (à copier-coller)</h3>
+    <div class="scroll"><table><tr><th>Usage</th><th>Adresse</th><th></th></tr>
+    ${[['Webhook Meta (WhatsApp/Facebook/Instagram)', cb.metaWebhook],['Retour OAuth Meta', cb.metaOAuth],['Webhook TikTok', cb.tiktokWebhook],['Retour OAuth TikTok', cb.tiktokOAuth],['Webhook SasPay (paiements)', cb.saspayWebhook]].map(r=>`<tr><td>${r[0]}</td><td class="mono">${esc(r[1]||'')}</td><td><button class="btn btn-petit" onclick="copier('${esc(r[1]||'')}')">📋 Copier</button></td></tr>`).join('')}
+    </table></div></div>
+  ${Object.entries(provs).map(([code, p])=>`
+  <div class="carte">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="margin:0">${p.icon} ${esc(p.label)}</h2>
+      <span class="etat ${p.configured?'on':'warn'}">${p.configured?'🟢 Configuré':'⚪ Non configuré'}</span>
+    </div>
+    <p class="sub">Où trouver : ${esc(p.help)} · <a href="${LIENS[code]||'#'}" target="_blank" rel="noopener" style="color:var(--violet);font-weight:700">Ouvrir le site du fournisseur →</a></p>
+    <div class="grid-plan" style="grid-template-columns:1fr;gap:9px">
+    ${Object.entries(p.fields).map(([f, v])=>`
+      <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+        <div style="flex:1;min-width:230px"><label>${CHAMPS[code]?.[f]||f}${v.set?` · <span style="color:var(--vert-d)">actuel : ${esc(v.masked)} (${v.source==='env'?'via .env':'connecteur'})</span>`:''}</label>
+        <input class="ipt" type="${v.secret?'password':'text'}" id="conn-${code}-${f}" placeholder="${v.set?'Laisser vide = garder l\'actuel':'Coller ici…'}" autocomplete="off"></div>
+        ${v.set?`<button class="btn btn-petit btn-danger" onclick="effacerChamp('${code}','${f}')">Effacer</button>`:''}
+      </div>`).join('')}
+    </div>
+    <div class="mini" style="margin-top:13px">
+      <button class="btn btn-principal btn-petit" onclick="sauverConnecteur('${code}')">💾 Enregistrer</button>
+      <button class="btn btn-violet btn-petit" onclick="testerConnecteur('${code}', this)">🔍 Tester la connexion</button>
+      <span id="test-${code}" style="font-size:13.5px;font-weight:600"></span>
+    </div>
+  </div>`).join('')}`;
+}
+function copier(t){ if(!t) return; (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('📋 Adresse copiée')).catch(()=>toast(t)); }
+async function sauverConnecteur(code){
+  const champs = {};
+  document.querySelectorAll(`[id^="conn-${code}-"]`).forEach(i=>{ const f=i.id.slice(('conn-'+code+'-').length); if(i.value.trim()) champs[f]=i.value.trim(); });
+  if(!Object.keys(champs).length){ toast('⚠️ Collez au moins une valeur à enregistrer'); return; }
+  try{
+    const d = await api('/api/admin/connectors/'+code+'/save', { method:'POST', body: JSON.stringify({ fields: champs }) });
+    toast('✅ Connecteur enregistré et activé immédiatement'); chargerTout();
+  }catch(e){ toast('⚠️ '+e.message); }
+}
+async function effacerChamp(code, f){
+  if(!confirm('Effacer cette valeur du connecteur ?')) return;
+  try{ await api('/api/admin/connectors/'+code+'/save', { method:'POST', body: JSON.stringify({ fields: { [f]: '__clear__' } }) }); toast('🗑 Valeur effacée'); chargerTout(); }catch(e){ toast('⚠️ '+e.message); }
+}
+async function testerConnecteur(code, btn){
+  const zone = document.getElementById('test-'+code); if(zone) zone.textContent = '⏳ Test en cours…';
+  try{
+    const d = await api('/api/admin/connectors/'+code+'/test', { method:'POST', body: '{}' });
+    if(zone) zone.innerHTML = d.ok ? '✅ '+esc(d.message) : '❌ '+esc(d.message);
+    toast(d.ok?'✅ '+d.message:'❌ '+d.message);
+  }catch(e){ if(zone) zone.textContent='❌ '+e.message; toast('⚠️ '+e.message); }
 }
 
 function renderVue(c){

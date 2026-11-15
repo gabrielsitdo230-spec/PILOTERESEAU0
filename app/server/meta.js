@@ -8,15 +8,19 @@
  */
 'use strict';
 const crypto = require('crypto');
+const connectors = require('./connectors');
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
-const cfg = {
-  appId: process.env.META_APP_ID || '',
-  appSecret: process.env.META_APP_SECRET || '',
-  verifyToken: process.env.META_VERIFY_TOKEN || 'pilote-reseau-verify',
-  whatsappToken: process.env.WHATSAPP_TOKEN || '',
-  redirectUri: process.env.META_REDIRECT_URI || 'http://localhost:3000/auth/meta/callback',
-};
+const cfg = { appId: '', appSecret: '', verifyToken: '', whatsappToken: '', redirectUri: '' };
+function reload() {
+  cfg.appId = connectors.get('meta', 'appId');
+  cfg.appSecret = connectors.get('meta', 'appSecret');
+  cfg.verifyToken = connectors.get('meta', 'verifyToken') || 'pilote-reseau-verify';
+  cfg.whatsappToken = connectors.get('meta', 'whatsappToken');
+  cfg.redirectUri = connectors.get('meta', 'redirectUri') || 'http://localhost:3000/auth/meta/callback';
+  return cfg;
+}
+reload();
 function isLive() { return Boolean(cfg.appId && cfg.appSecret); }
 
 /* ---------- OAuth "Connecter avec Facebook" (Facebook + Instagram) ---------- */
@@ -175,6 +179,6 @@ async function sendMessage({ channel, account, to, text, lastInboundAt }) {
 }
 
 module.exports = {
-  cfg, isLive, buildOAuthUrl, exchangeCodeForToken, listPagesAndInstagram,
+  cfg, reload, isLive, buildOAuthUrl, exchangeCodeForToken, listPagesAndInstagram,
   verifyWebhook, isValidSignature, normalizeWebhook, sendMessage, within24h, SCOPES,
 };

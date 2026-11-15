@@ -13,14 +13,18 @@
  */
 'use strict';
 const crypto = require('crypto');
+const connectors = require('./connectors');
 
 const API = 'https://open.tiktokapis.com/v2';
-const cfg = {
-  clientKey: process.env.TIKTOK_CLIENT_KEY || '',
-  clientSecret: process.env[['TIKTOK_CLIENT', 'SECRET'].join('_')] || '',
-  redirectUri: process.env.TIKTOK_REDIRECT_URI || 'http://localhost:3000/auth/tiktok/callback',
-  webhookSecret: process.env.TIKTOK_WEBHOOK_SECRET || '',
-};
+const cfg = { clientKey: '', clientSecret: '', redirectUri: '', webhookSecret: '' };
+function reload() {
+  cfg.clientKey = connectors.get('tiktok', 'clientKey');
+  cfg.clientSecret = connectors.get('tiktok', 'clientSecret');
+  cfg.redirectUri = connectors.get('tiktok', 'redirectUri') || 'http://localhost:3000/auth/tiktok/callback';
+  cfg.webhookSecret = connectors.get('tiktok', 'webhookSecret');
+  return cfg;
+}
+reload();
 function isLive() { return Boolean(cfg.clientKey && cfg.clientSecret); }
 
 /* ---------- OAuth "Connecter avec TikTok" (Login Kit) ---------- */
@@ -128,6 +132,6 @@ function needsHuman(text) {
 }
 
 module.exports = {
-  cfg, isLive, SCOPES, buildOAuthUrl, exchangeCodeForToken, getUserInfo,
+  cfg, reload, isLive, SCOPES, buildOAuthUrl, exchangeCodeForToken, getUserInfo,
   isValidSignature, normalizeWebhook, replyToComment, needsHuman,
 };
