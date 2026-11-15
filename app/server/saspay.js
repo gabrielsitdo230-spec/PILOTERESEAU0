@@ -39,13 +39,13 @@ async function api(method, path, body, extraHeaders = {}) {
 }
 
 /** Crée une session de checkout hébergé : le client choisit son réseau et paie sur la page SasPay. */
-async function createCheckoutSession({ amount, currency, description, customerEmail, customerName, customerPhone }) {
+async function createCheckoutSession({ amount, currency, description, customerEmail, customerName, customerPhone, countryCode }) {
   const email = /.+@.+\..+/.test(customerEmail || '') ? customerEmail : 'client@pilotereseau.local';
   return api('POST', '/checkout-sessions/', {
     amount: Number(amount).toFixed(2),
     currency,
     description: String(description || 'Pilote Réseau').slice(0, 120),
-    country: cfg.country,
+    country: countryCode || cfg.country,
     customer_email: email,
     customer_name: String(customerName || 'Client Pilote Réseau').slice(0, 80),
     customer_phone: customerPhone || '',

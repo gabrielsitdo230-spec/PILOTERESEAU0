@@ -19,14 +19,15 @@ let n = 0; const ok = (name) => { n++; console.log(`✅ ${name}`); };
       assert((req.headers.authorization || '').startsWith('Bearer sk_test_'), 'Bearer SasPay attendu');
       if (req.url === '/api/v1/checkout-sessions/' && req.method === 'POST') {
         const b = JSON.parse(body);
-        assert.strictEqual(b.currency, 'USD');
+        assert.strictEqual(b.currency, 'CDF'); // pays CD choisi par défaut : 2 USD convertis en CDF
+        assert.strictEqual(b.amount, '5500.00');
         assert(b.customer_email && b.customer_name);
         res.writeHead(201);
         return res.end(JSON.stringify({ success: true, code: 201, data: { id: 'sess_test_123', checkout_url: 'https://pay.saspay.me/checkout/test123', status: 'PENDING' } }));
       }
       if (req.url === '/api/v1/checkout-sessions/sess_test_123/status/') {
         res.writeHead(200);
-        return res.end(JSON.stringify({ success: true, code: 200, data: { id: 'sess_test_123', status: 'SUCCESS' } }));
+        return res.end(JSON.stringify({ success: true, code: 200, data: { id: 'sess_test_123', status: global.__TT_STATUS || 'SUCCESS' } }));
       }
       res.writeHead(404); res.end('{}');
     });
@@ -67,30 +68,54 @@ let n = 0; const ok = (name) => { n++; console.log(`✅ ${name}`); };
 
     // 3. Checkout : session hébergée créée, URL renvoyée au client
     const before = credits.get('demo').balance;
-    const co = await payments.checkout({ workspaceId: 'ws_saspay_test', planCode: 'starter', method: 'orange_money', customerEmail: 'marie@test.cd', customerName: 'Marie' });
+    const WS1 = 'ws_saspay_' + Date.now().toString(36);
+    const co = await payments.checkout({ workspaceId: WS1, planCode: 'starter', method: 'orange_money', customerEmail: 'marie@test.cd', customerName: 'Marie' });
     assert(!co.error, co.error);
     assert.strictEqual(co.payment.provider, 'saspay');
     assert.strictEqual(co.payment.saspaySessionId, 'sess_test_123');
     assert(co.checkoutUrl.includes('pay.saspay.me'));
     ok('SasPay : session de checkout créée (le client paie sur la page SasPay)');
 
-    // 4. Vérification du statut -> SUCCESS -> crédits ajoutés UNE fois
-    const c1 = await payments.checkAndConfirm(co.payment.providerRef);
+    // 4. STRICT : la lecture du statut ne crédite JAMAIS. Seul le signal (webhook) revérifié crédite, une fois.
+    const lecture = await payments.checkStatusOnly(co.payment.providerRef);
+    assert.strictEqual(lecture.payment.status, 'pending');
+    assert.strictEqual(credits.get(WS1).balance, 0);
+    const c1 = await payments.validateFromSaspaySignal(co.payment.providerRef);
     assert.strictEqual(c1.payment.status, 'success');
     assert.strictEqual(c1.payment.creditsGranted, 500);
-    const apres = credits.get('ws_saspay_test').balance;
-    assert.strictEqual(apres, 500);
-    const c2 = await payments.checkAndConfirm(co.payment.providerRef);
+    assert.strictEqual(credits.get(WS1).balance, 500);
+    const c2 = await payments.validateFromSaspaySignal(co.payment.providerRef);
     assert.strictEqual(c2.alreadyProcessed, true);
-    assert.strictEqual(credits.get('ws_saspay_test').balance, apres);
-    ok('SasPay : statut revérifié chez SasPay, crédits ajoutés une seule fois');
+    assert.strictEqual(credits.get(WS1).balance, 500);
+    ok('SasPay STRICT : aucun crédit avant le signal confirmé, puis crédit unique');
+
+    // 4bis. ANNULATION catégorique : statut CANCELLED chez SasPay -> paiement annulé, 0 crédit
+    global.__TT_STATUS = 'CANCELLED';
+    const WS2 = 'ws_saspay2_' + Date.now().toString(36);
+    const co2 = await payments.checkout({ workspaceId: WS2, planCode: 'starter', method: 'mpesa', customerEmail: 'jean@test.cd', customerName: 'Jean', countryCode: 'CD' });
+    assert.strictEqual(co2.payment.country, 'CD');
+    assert.strictEqual(co2.payment.chargedCurrency, 'CDF');
+    assert.strictEqual(co2.payment.chargedAmount, 5500); // 2 USD x 2750, prix toujours en dollars en référence
+    const annule = await payments.validateFromSaspaySignal(co2.payment.providerRef);
+    assert.strictEqual(annule.cancelled, true);
+    assert.strictEqual(annule.payment.status, 'cancelled');
+    assert.strictEqual(credits.get(WS2).balance, 0);
+    global.__TT_STATUS = 'SUCCESS';
+    ok('SasPay ANNULATION : achat annulé catégoriquement, aucun crédit, à reprendre');
+
+    // 4ter. Pays africains : 54 pays, conversion USD -> devise locale
+    const countries = require('../server/countries');
+    assert.strictEqual(countries.list().length, 54);
+    assert.strictEqual(countries.get('NG').currency, 'NGN');
+    assert(countries.convert(10, countries.get('KE')).amount > 1000);
+    ok('Pays africains : 54 pays/devises, prix de référence toujours en USD');
 
     // 5. Statuts reconnus
     assert(saspay.isSuccessStatus('SUCCESS') && saspay.isSuccessStatus('paid'));
     assert(saspay.isFailedStatus('FAILED') && saspay.isFailedStatus('CANCELLED'));
     ok('SasPay : statuts succès/échec reconnus');
 
-    console.log(`\n🎉 ${n}/5 tests réussis — SasPay OK (mode test, faux serveur conforme à la doc)`);
+    console.log(`\n🎉 ${n}/7 tests réussis — SasPay OK (mode test, faux serveur conforme à la doc)`);
   } finally {
     fake.close();
     // On ne touche pas au solde de démo principal

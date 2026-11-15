@@ -323,11 +323,12 @@ const server = http.createServer(async (req, res) => {
 
     // ---------- Étape 5 : Plans publics + Paiements ----------
     if (p === '/api/plans' && req.method === 'GET') return json(res, 200, { plans: plans.list({ onlyActive: true }) });
+    if (p === '/api/countries' && req.method === 'GET') { const { list } = require('./countries'); return json(res, 200, { countries: list(), referenceCurrency: 'USD', note: 'Prix des plans en USD ; conversion indicative dans la devise du pays choisi pour le débit SasPay.' }); }
     if (p === '/api/payments/methods' && req.method === 'GET') return json(res, 200, { methods: payments.METHODS, live: payments.isLive() });
     if (p === '/api/payments/checkout' && req.method === 'POST') {
       const b = await readBody(req);
       const a = requireAuth(req, res); if (!a) return;
-      const r = await payments.checkout({ workspaceId: a.workspaceId, planCode: b.planCode, method: b.method || 'orange_money', phone: b.phone || '', customerEmail: a.user.login, customerName: a.user.name });
+      const r = await payments.checkout({ workspaceId: a.workspaceId, planCode: b.planCode, method: b.method || 'orange_money', phone: b.phone || '', customerEmail: a.user.login, customerName: a.user.name, countryCode: b.countryCode || b.country || 'CD' });
       if (r.error) return json(res, 400, { error: r.error });
       return json(res, 201, r);
     }
@@ -352,7 +353,7 @@ const server = http.createServer(async (req, res) => {
       const a = requireAuth(req, res); if (!a) return;
       const ref = decodeURIComponent(p.split('/').pop());
       try {
-        const r = await payments.checkAndConfirm(ref);
+        const r = await payments.checkStatusOnly(ref); // lecture seule : les crédits ne viennent QUE du webhook SasPay confirmé
         if (r.error) return json(res, 404, { error: r.error });
         return json(res, 200, { ...r, credits: credits.get(a.workspaceId) });
       } catch (e) { return json(res, 502, { error: 'Vérification du paiement impossible pour le moment : ' + e.message }); }
@@ -366,10 +367,11 @@ const server = http.createServer(async (req, res) => {
       let body = {}; try { body = JSON.parse(raw || '{}'); } catch { return json(res, 400, { error: 'JSON invalide' }); }
       const event = body.event || req.headers['x-webhook-event'] || '';
       let confirmed = [];
-      if (event === 'transaction.success' || saspay.isSuccessStatus(body.data?.status)) {
+      if (event.startsWith('transaction.') || body.data?.status) {
+        // Succès OU annulation/échec : on revérifie chaque paiement en attente chez SasPay, puis on valide ou on ANNULE.
         confirmed = await payments.confirmPendingSaspay();
       }
-      return json(res, 200, { received: true, event, confirmed: confirmed.map(c => ({ ref: c.ref, ok: Boolean(c.payment && c.payment.status === 'success') })) });
+      return json(res, 200, { received: true, event, results: confirmed.map(c => ({ ref: c.ref, statut: c.payment ? c.payment.status : 'erreur', annule: Boolean(c.cancelled) })) });
     }
     if (p === '/api/payments/history' && req.method === 'GET') { const a = requireAuth(req, res); if (!a) return; return json(res, 200, { payments: payments.list(a.workspaceId) }); }
 

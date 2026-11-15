@@ -621,18 +621,37 @@ function terminerCreation(){ const nom=(CREA.q.nom||'Mon assistant')+' — '+RES
 
 /* ================= PAIEMENT ================= */
 let PAIEMENT=null;
-function ouvrirPaiement(plan, credits, prix, code){ PAIEMENT={plan, credits, prix, moyen:'Orange Money', code: code || plan.toLowerCase()};
+let PAYS_CACHE = null;
+async function chargerPays(sel){
+  if(!PAYS_CACHE){ try { PAYS_CACHE = (await (await fetch('/api/countries')).json()).countries || []; } catch(e){ PAYS_CACHE = [{code:'CD', name:'République Démocratique du Congo', currency:'CDF', rate:2750, sasPay:true}]; } }
+  sel.innerHTML = PAYS_CACHE.map(c=>`<option value="${c.code}" ${c.code==='CD'?'selected':''}>${c.sasPay?'🟢':'💳'} ${c.name} (${c.currency})</option>`).join('');
+  majRecapPays();
+}
+function majRecapPays(){
+  const sel = document.getElementById('pay-country'); const recap = document.getElementById('pay-recap');
+  if(!sel || !recap || !PAIEMENT) return;
+  const c = (PAYS_CACHE||[]).find(x=>x.code===sel.value); if(!c) return;
+  const usd = parseFloat(String(PAIEMENT.prix).replace(/[^0-9.]/g,'')) || 0;
+  const local = Math.round(usd * (c.rate||1) * 100) / 100;
+  const fmt = (n) => n.toLocaleString('fr-FR');
+  recap.innerHTML = c.sasPay
+    ? `💵 Prix : <b>${PAIEMENT.prix}</b> (référence dollars)<br>📱 Vous paierez environ <b>${fmt(local)} ${c.currency}</b> chez SasPay (${c.name}) — Orange Money, M-Pesa, MTN, Airtel ou carte selon votre pays.<br>🔒 <b>Vos crédits n'arriveront qu'après le signal de paiement confirmé de SasPay.</b>`
+    : `💵 Prix : <b>${PAIEMENT.prix}</b><br>💳 SasPay ne couvre pas encore directement ${c.name} : le paiement se fera par carte en dollars.<br>🔒 <b>Crédits accordés uniquement après confirmation SasPay.</b>`;
+}
+function ouvrirPaiement(plan, credits, prix, code){ PAIEMENT={plan, credits, prix, moyen:'Orange Money', code: code || plan.toLowerCase()}; setTimeout(()=>{ const sel=document.getElementById('pay-country'); if(sel) chargerPays(sel); }, 50);
   document.getElementById('zone-modal').innerHTML=`<div class="modal-fond" onclick="if(event.target===this)fermerModal()"><div class="modal">
   <button class="x" onclick="fermerModal()">✕</button><h2>Plan ${plan} · ${prix}/mois</h2>
   <p style="color:var(--gris);font-size:14px">${credits.toLocaleString('fr-FR')} messages IA inclus. Choisissez comment payer :</p>
   <div class="moyens">${['🟠 Orange Money','🔴 M-Pesa','🟡 MTN MoMo','🔴 Airtel Money','💳 Carte bancaire'].map((m,i)=>`<button class="${i===0?'sel':''}" onclick="document.querySelectorAll('.moyens button').forEach(b=>b.classList.remove('sel'));this.classList.add('sel');PAIEMENT.moyen='${m.replace(/^[^ ]+ /,'')}'">${m}</button>`).join('')}</div>
-  <label class="champ">Numéro qui va payer</label><input class="ipt" placeholder="Ex : +243 815 000 000">
+  <label class="champ">🌍 Votre pays</label><select class="ipt" id="pay-country" onchange="majRecapPays()"></select>
+  <div id="pay-recap" style="background:#f6f7fb;border:1px solid var(--bord);border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:10px">Choisissez votre pays : le prix reste en dollars, SasPay débitera l'équivalent dans votre devise.</div>
+  <label class="champ">Numéro qui va payer</label><input class="ipt" id="pay-phone" placeholder="Ex : +243 815 000 000">
   <div style="height:14px"></div><button class="btn btn-principal btn-grand" onclick="validerPaiement()">Payer ${prix}</button>
   <p style="text-align:center;font-size:12.5px;color:var(--gris);margin-top:10px">🔒 Paiement sécurisé. Vous recevrez une demande de confirmation sur votre téléphone.</p></div></div>`; }
 const MOYENS_API={'Orange Money':'orange_money','M-Pesa':'mpesa','MTN MoMo':'mtn_momo','Airtel Money':'airtel_money','Carte bancaire':'card'};
 async function validerPaiement(){ const p=PAIEMENT; fermerModal(); toast(`📲 Demande envoyée ! Confirmez avec votre code PIN ${p.moyen}…`);
   try{
-    const co = await (await fetch('/api/payments/checkout',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({planCode:p.code, method:MOYENS_API[p.moyen]||'orange_money'})})).json();
+    const co = await (await fetch('/api/payments/checkout',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({planCode:p.code, method:MOYENS_API[p.moyen]||'orange_money', countryCode:(document.getElementById('pay-country')||{}).value||'CD', phone:(document.getElementById('pay-phone')||{}).value||''})})).json();
     if(co.error) throw new Error(co.error);
     if(co.checkoutUrl){ // SasPay (ou autre checkout hébergé réel)
       window.open(co.checkoutUrl, '_blank');
@@ -647,10 +666,10 @@ async function validerPaiement(){ const p=PAIEMENT; fermerModal(); toast(`📲 D
             aller('credits'); toast(`🎉 Paiement SasPay confirmé ! Plan ${p.plan} actif, solde : ${ETAT.credits} crédits.`);
             return;
           }
-          if(st.payment && st.payment.status==='failed'){ aller('credits'); toast('❌ Le paiement SasPay a échoué ou été annulé. Réessayez.'); return; }
+          if(st.payment && (st.payment.status==='failed' || st.payment.status==='cancelled')){ aller('credits'); toast('❌ L\'achat n\'a pas abouti : le paiement a été annulé chez SasPay. Aucun crédit ajouté. Veuillez reprendre l\'achat.'); return; }
         }catch(e){ /* on continue de vérifier */ }
       }
-      aller('credits'); toast('⏳ Paiement en cours de confirmation chez SasPay. Vos crédits arriveront dès validation — rechargez la page dans un instant.');
+      aller('credits'); toast('⏳ En attente du signal de SasPay. Dès que SasPay confirmera l\'argent reçu, vos crédits seront ajoutés automatiquement. Si vous avez annulé, l\'achat sera annulé : il faudra reprendre l\'achat.');
       return;
     }
     const conf = await (await fetch('/api/payments/simulate-confirm',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({providerRef:co.payment.providerRef})})).json();
