@@ -1,0 +1,33 @@
+# Déploiement en 1 clic sur Render.com (alternative : Railway, Fly.io — même principe)
+# 1. Poussez ce dossier sur GitHub  2. Render > New > Blueprint  3. Renseignez les secrets ci-dessous
+services:
+  - type: web
+    name: pilote-reseau
+    env: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: LLM_API_KEY
+        sync: false        # à remplir dans le dashboard Render (secret)
+      - key: LLM_MODEL
+        value: gpt-4o-mini
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_VERIFY_TOKEN
+        generateValue: true
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false        # 64 caractères hex — voir checklist Étape 6
+      - key: ADMIN_KEY
+        sync: false        # VOTRE code admin secret
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

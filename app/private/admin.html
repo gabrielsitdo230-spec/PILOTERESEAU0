@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Pilote Réseau</title>
+<style>
+:root{--vert:#00c853;--vert-d:#009624;--violet:#6c3ce9;--noir:#12141a;--gris:#5b6472;--fond:#f6f7fb;--bord:#e6e8f0;--rouge:#e5484d;--orange:#ff8a00;--ombre:0 8px 30px rgba(18,20,26,.08);--r:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--fond);color:var(--noir);line-height:1.55}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select{font-family:inherit;font-size:15px}
+.hide{display:none!important}
+.top{position:sticky;top:0;z-index:50;background:var(--noir);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.top b{font-size:18px}.top span.badge{background:var(--rouge);font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px;vertical-align:middle}
+.wrap{max-width:1080px;margin:auto;padding:18px 14px 60px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 18px;border-radius:11px;font-weight:700;font-size:14px;background:#fff;border:2px solid var(--bord);color:var(--noir)}
+.btn-principal{background:var(--vert);border-color:var(--vert);color:#fff}
+.btn-violet{background:var(--violet);border-color:var(--violet);color:#fff}
+.btn-danger{background:#fdecec;border-color:#f5c2c4;color:var(--rouge)}
+.btn-petit{padding:8px 12px;font-size:13px;border-radius:9px}
+.carte{background:#fff;border:1px solid var(--bord);border-radius:var(--r);padding:20px;box-shadow:var(--ombre);margin-bottom:14px}
+.carte h2{font-size:19px;margin-bottom:4px}.carte h3{font-size:16px;margin-bottom:8px}
+.sub{color:var(--gris);font-size:13.5px;margin-bottom:14px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:14px}
+@media(min-width:760px){.stats{grid-template-columns:repeat(3,1fr)}}
+.stat{background:#fff;border:1px solid var(--bord);border-radius:var(--r);padding:16px}
+.stat .v{font-size:26px;font-weight:900}.stat .l{color:var(--gris);font-size:12.5px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:560px}
+th,td{padding:9px 8px;border-bottom:1px solid var(--bord);text-align:left;vertical-align:middle}
+th{color:var(--gris);font-size:11.5px;text-transform:uppercase}
+.scroll{overflow-x:auto}
+.etat{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.on{background:#e8f9ee;color:var(--vert-d)}.off{background:#fdecec;color:var(--rouge)}.warn{background:#fff4e5;color:#b25e00}
+input.ipt,select.ipt{width:100%;padding:10px 11px;border:2px solid var(--bord);border-radius:10px;outline:none;background:#fff}
+input.ipt:focus{border-color:var(--violet)}
+input.prix{width:90px;font-weight:800}
+input.nb{width:90px}
+label{font-size:12px;font-weight:700;color:var(--gris);display:block;margin-bottom:4px}
+.grid-plan{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:700px){.grid-plan{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:980px){.grid-plan{grid-template-columns:repeat(5,1fr)}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--noir);color:#fff;padding:13px 20px;border-radius:12px;font-weight:700;font-size:14px;z-index:99;max-width:92vw;text-align:center}
+.login{max-width:420px;margin:60px auto}
+.aide{background:#f0ebff;border:1px solid #ddd0ff;border-radius:12px;padding:13px 15px;font-size:13.5px;margin-bottom:14px}
+.erreur{background:#fff4e5;border:1px solid #ffd8a8;border-radius:12px;padding:12px 14px;font-size:13.5px;margin-bottom:12px}
+.tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;padding-bottom:4px}
+.tabs button{white-space:nowrap;padding:9px 15px;border-radius:99px;border:2px solid var(--bord);background:#fff;font-weight:700;font-size:13.5px}
+.tabs button.sel{background:var(--noir);color:#fff;border-color:var(--noir)}
+.mini{display:flex;gap:6px;flex-wrap:wrap}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+</style>
+</head>
+<body>
+
+<div id="vue-admin">
+  <div class="top"><div>🚀 <b>Pilote Réseau</b> <span class="badge">ADMIN</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-petit" href="/">Voir le site</a><button class="btn btn-petit" onclick="chargerTout()">🔄 Actualiser</button><button class="btn btn-petit btn-danger" onclick="logout()">Quitter</button></div>
+  </div>
+  <div class="wrap">
+    <div class="aide">💡 <b>Vous êtes le patron de la plateforme.</b> Tout changement ici (prix, crédits, suspension) s'applique <b>immédiatement</b> à vos clients, sans toucher au code.</div>
+    <div class="tabs" id="tabs">
+      <button data-tab="vue" class="sel" onclick="tab('vue')">📊 Vue d'ensemble</button>
+      <button data-tab="prix" onclick="tab('prix')">🏷️ Prix & Plans</button>
+      <button data-tab="clients" onclick="tab('clients')">👥 Clients & Crédits</button>
+      <button data-tab="reseaux" onclick="tab('reseaux')">🔗 Réseaux & Messages</button>
+      <button data-tab="paiements" onclick="tab('paiements')">💰 Paiements</button>
+      <button data-tab="systeme" onclick="tab('systeme')">⚙️ Système</button>
+    </div>
+    <div id="contenu"></div>
+  </div>
+</div>
+
+<div id="zone-toast"></div>
+
+<script>
+const KEY = ''; // session propriétaire par cookie HttpOnly (jamais de code dans le navigateur)
+let TAB = 'vue';
+let CACHE = {};
+
+function toast(m){ const z=document.getElementById('zone-toast'); z.innerHTML=`<div class="toast">${m}</div>`; setTimeout(()=>z.innerHTML='',3600); }
+async function api(path, opts={}){
+  const r = await fetch(path, { ...opts, credentials: 'same-origin', headers: { 'Content-Type':'application/json', ...(opts.headers||{}) } });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error || ('Erreur '+r.status));
+  return d;
+}
+async function logout(){
+  try { await fetch('/api/admin/logout', { method:'POST', credentials:'same-origin' }); } catch(e) {}
+  location.href = '/admin';
+}
+function tab(t){ TAB=t; document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('sel', b.dataset.tab===t)); render(); }
+function fmt(n){ return Number(n).toLocaleString('fr-FR'); }
+function esc(s){ return String(s??'').replace(/</g,'&lt;'); }
+
+async function chargerTout(){
+  try{
+    const [ov, ws, acc, pay, msg] = await Promise.all([
+      api('/api/admin/overview'), api('/api/admin/workspaces'), api('/api/admin/accounts'), api('/api/admin/payments'), api('/api/admin/messages')
+    ]);
+    CACHE = { ov, ws: ws.workspaces, acc: acc.accounts, pay: pay.payments, rev: pay.revenue, msg: msg.messages, queue: msg.queue };
+    render();
+  }catch(e){ if(/401|refus/i.test(e.message)) { location.href='/admin'; return; } toast('⚠️ '+e.message); }
+}
+
+function render(){
+  const c = document.getElementById('contenu'); if(!CACHE.ov) { c.innerHTML='<div class="carte">Chargement…</div>'; return; }
+  if(TAB==='vue') return renderVue(c);
+  if(TAB==='prix') return renderPrix(c);
+  if(TAB==='clients') return renderClients(c);
+  if(TAB==='reseaux') return renderReseaux(c);
+  if(TAB==='paiements') return renderPaiements(c);
+  if(TAB==='systeme') return renderSysteme(c);
+}
+
+function renderVue(c){
+  const t = CACHE.ov.totals, rev = Object.entries(t.revenus).map(([k,v])=>`${fmt(v)} ${k}`).join(' · ') || '0';
+  c.innerHTML = `
+  <div class="stats">
+    <div class="stat"><div class="v">${t.clients}</div><div class="l">👥 Clients inscrits (${t.clientsActifs} actifs)</div></div>
+    <div class="stat"><div class="v">${t.comptesConnectes}</div><div class="l">🔗 Comptes WhatsApp/Facebook/Instagram connectés</div></div>
+    <div class="stat"><div class="v">${fmt(t.messagesTraites)}</div><div class="l">💬 Messages traités par les IA</div></div>
+    <div class="stat"><div class="v">${t.paiementsReussis}</div><div class="l">✅ Paiements réussis</div></div>
+    <div class="stat"><div class="v" style="font-size:21px;padding-top:5px">${esc(rev)}</div><div class="l">💰 Revenus encaissés</div></div>
+    <div class="stat"><div class="v">${CACHE.ov.plans.filter(p=>p.active).length}</div><div class="l">🏷️ Plans en vente</div></div>
+  </div>
+  <div class="carte"><h3>🚀 Actions rapides</h3><div class="mini">
+    <button class="btn btn-violet" onclick="tab('prix')">🏷️ Modifier les prix</button>
+    <button class="btn" onclick="tab('clients')">💳 Donner des crédits à un client</button>
+    <button class="btn" onclick="tab('paiements')">💰 Voir les paiements</button>
+    <button class="btn" onclick="tab('systeme')">⚙️ Vérifier le système</button>
+  </div></div>
+  <div class="carte"><h3>🏷️ Prix actuels (visibles par les clients)</h3>
+    <div class="scroll"><table><tr><th>Plan</th><th>Prix / mois</th><th>Crédits inclus</th><th>Assistants max</th><th>État</th></tr>
+    ${CACHE.ov.plans.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td><b>${p.priceMonthly} ${esc(p.currency)}</b></td><td>${fmt(p.creditsIncluded)}</td><td>${p.maxAssistants>=99?'Illimité':p.maxAssistants}</td><td><span class="etat ${p.active?'on':'off'}">${p.active?'🟢 En vente':'⚪ Masqué'}</span></td></tr>`).join('')}
+    </table></div>
+    <button class="btn btn-principal" onclick="tab('prix')" style="margin-top:12px">✏️ Modifier ces prix manuellement</button>
+  </div>`;
+}
+
+function renderPrix(c){
+  c.innerHTML = `
+  <div class="carte"><h2>🏷️ Prix & Plans — modification manuelle</h2>
+  <p class="sub">Changez un prix, les crédits inclus ou la devise, puis cliquez <b>Enregistrer</b>. Le nouveau tarif apparaît aussitôt sur la page Tarifs et dans l'écran Crédits de vos clients. Astuce : passez un plan en « Masqué » pour arrêter de le vendre sans le supprimer.</p>
+  ${CACHE.ov.plans.map(p=>`
+  <div style="border:2px solid var(--bord);border-radius:14px;padding:16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <b style="font-size:17px">${esc(p.name)}</b> <span class="etat ${p.active?'on':'off'}">${p.active?'🟢 En vente':'⚪ Masqué'}</span>
+    </div>
+    <div class="grid-plan">
+      <div><label>Nom du plan</label><input class="ipt" id="name-${p.code}" value="${esc(p.name)}"></div>
+      <div><label>Prix / mois</label><input class="ipt prix" id="price-${p.code}" type="number" min="0" step="0.5" value="${p.priceMonthly}"></div>
+      <div><label>Devise</label><select class="ipt" id="cur-${p.code}">${['USD','CDF','XOF','XAF','EUR','KES','GHS','NGN'].map(cur=>`<option ${cur===p.currency?'selected':''}>${cur}</option>`).join('')}</select></div>
+      <div><label>Crédits inclus / mois</label><input class="ipt nb" id="cred-${p.code}" type="number" min="0" step="50" value="${p.creditsIncluded}"></div>
+      <div><label>Assistants max</label><input class="ipt nb" id="maxa-${p.code}" type="number" min="1" value="${p.maxAssistants}"></div>
+    </div>
+    <div style="margin-top:10px"><label>Avantages (une ligne par avantage, séparés par une virgule)</label>
+    <input class="ipt" id="feat-${p.code}" value="${esc((p.features||[]).join(', '))}"></div>
+    <div class="mini" style="margin-top:13px">
+      <button class="btn btn-principal btn-petit" onclick="sauverPlan('${p.code}')">💾 Enregistrer</button>
+      <button class="btn btn-petit" onclick="basculerPlan('${p.code}', ${!p.active})">${p.active?'⚪ Masquer ce plan':'🟢 Remettre en vente'}</button>
+      <button class="btn btn-petit btn-danger" onclick="supprimerPlan('${p.code}')">🗑 Supprimer</button>
+    </div>
+  </div>`).join('')}
+  </div>
+  <div class="carte"><h3>➕ Créer un nouveau plan</h3>
+    <div class="grid-plan">
+      <div><label>Code (sans espace)</label><input class="ipt" id="new-code" placeholder="premium"></div>
+      <div><label>Nom</label><input class="ipt" id="new-name" placeholder="Premium"></div>
+      <div><label>Prix / mois</label><input class="ipt" id="new-price" type="number" min="0" value="39"></div>
+      <div><label>Crédits inclus</label><input class="ipt" id="new-credits" type="number" min="0" value="5000"></div>
+      <div><label>Assistants max</label><input class="ipt" id="new-max" type="number" min="1" value="5"></div>
+    </div>
+    <button class="btn btn-violet" style="margin-top:12px" onclick="creerPlan()">Créer le plan</button>
+  </div>`;
+}
+async function sauverPlan(code){
+  try{
+    const body = {
+      name: document.getElementById('name-'+code).value,
+      priceMonthly: document.getElementById('price-'+code).value,
+      currency: document.getElementById('cur-'+code).value,
+      creditsIncluded: document.getElementById('cred-'+code).value,
+      maxAssistants: document.getElementById('maxa-'+code).value,
+      features: document.getElementById('feat-'+code).value.split(',').map(x=>x.trim()).filter(Boolean),
+    };
+    const d = await api('/api/admin/plans/'+encodeURIComponent(code), { method:'PUT', body: JSON.stringify(body) });
+    toast(`✅ Plan « ${d.plan.name} » : nouveau prix ${d.plan.priceMonthly} ${d.plan.currency} enregistré et déjà visible par les clients`);
+    chargerTout();
+  }catch(e){ toast('⚠️ '+e.message); }
+}
+async function basculerPlan(code, active){
+  try{ await api('/api/admin/plans/'+encodeURIComponent(code), { method:'PUT', body: JSON.stringify({active}) }); toast(active?'🟢 Plan remis en vente':'⚪ Plan masqué'); chargerTout(); }catch(e){ toast('⚠️ '+e.message); }
+}
+async function supprimerPlan(code){
+  if(!confirm('Supprimer définitivement ce plan ? Les clients actuels gardent leurs crédits déjà payés.')) return;
+  try{ await api('/api/admin/plans/'+encodeURIComponent(code), { method:'DELETE' }); toast('🗑 Plan supprimé'); chargerTout(); }catch(e){ toast('⚠️ '+e.message); }
+}
+async function creerPlan(){
+  try{
+    const body = { code: val('new-code'), name: val('new-name'), priceMonthly: val('new-price'), creditsIncluded: val('new-credits'), maxAssistants: val('new-max'), currency:'USD' };
+    await api('/api/admin/plans', { method:'POST', body: JSON.stringify(body) });
+    toast('✅ Nouveau plan créé et déjà en vente'); chargerTout();
+  }catch(e){ toast('⚠️ '+e.message); }
+}
+function val(id){ return document.getElementById(id).value; }
+
+function renderClients(c){
+  c.innerHTML = `<div class="carte"><h2>👥 Clients & Crédits</h2>
+  <p class="sub">Donnez ou retirez des crédits à la main (geste commercial, correction…), changez le plan, mettez les assistants en pause, ou suspendez un compte.</p>
+  <div class="scroll"><table><tr><th>Client / Boutique</th><th>Téléphone</th><th>Plan</th><th>Crédits</th><th>Donner / retirer</th><th>Assistants</th><th>Compte</th><th>Actions</th></tr>
+  ${CACHE.ws.map(w=>`<tr>
+    <td><b>${esc(w.name)}</b><br><span style="color:var(--gris)">${esc(w.owner)} · ${esc(w.country)}</span></td>
+    <td class="mono">${esc(w.phone)}</td>
+    <td><select class="ipt" style="width:110px;padding:7px" onchange="changerPlanClient('${w.id}', this.value)">${CACHE.ov.plans.map(p=>`<option value="${p.code}" ${p.code===w.plan?'selected':''}>${esc(p.name)}</option>`).join('')}</select></td>
+    <td><b>${fmt(w.credits)}</b></td>
+    <td><div class="mini"><input class="ipt" style="width:80px;padding:7px" type="number" id="adj-${w.id}" placeholder="100"><button class="btn btn-petit btn-principal" onclick="ajusterCredits('${w.id}',1)">+ Ajouter</button><button class="btn btn-petit" onclick="ajusterCredits('${w.id}',-1)">− Retirer</button></div></td>
+    <td><span class="etat ${w.assistantsPaused?'warn':'on'}">${w.assistantsPaused?'⏸ En pause':'🟢 Actifs'}</span></td>
+    <td><span class="etat ${w.status==='active'?'on':'off'}">${w.status==='active'?'Actif':'Suspendu'}</span></td>
+    <td><div class="mini">
+      <button class="btn btn-petit" onclick="majClient('${w.id}', {assistantsPaused: ${!w.assistantsPaused}})">${w.assistantsPaused?'▶ Relancer':'⏸ Pause'}</button>
+      <button class="btn btn-petit ${w.status==='active'?'btn-danger':''}" onclick="majClient('${w.id}', {status: '${w.status==='active'?'suspended':'active'}'})">${w.status==='active'?'Suspendre':'Réactiver'}</button>
+    </div></td></tr>`).join('')}
+  </table></div></div>`;
+}
+async function ajusterCredits(id, sens){
+  const el = document.getElementById('adj-'+id); const montant = Math.abs(parseInt(el.value,10));
+  if(!montant){ toast('⚠️ Indiquez un nombre de crédits'); return; }
+  try{ const d = await api(`/api/admin/workspaces/${encodeURIComponent(id)}/credits`, { method:'POST', body: JSON.stringify({ amount: sens*montant, reason: sens>0?'cadeau_admin':'retrait_admin' }) });
+    toast(`✅ Nouveau solde : ${fmt(d.balance)} crédits`); chargerTout(); }catch(e){ toast('⚠️ '+e.message); }
+}
+async function majClient(id, patch){
+  try{ await api(`/api/admin/workspaces/${encodeURIComponent(id)}/update`, { method:'POST', body: JSON.stringify(patch) }); toast('✅ Client mis à jour'); chargerTout(); }catch(e){ toast('⚠️ '+e.message); }
+}
+async function changerPlanClient(id, plan){
+  try{ await api(`/api/admin/workspaces/${encodeURIComponent(id)}/update`, { method:'POST', body: JSON.stringify({plan}) }); toast('✅ Plan du client changé'); chargerTout(); }catch(e){ toast('⚠️ '+e.message); }
+}
+
+function renderReseaux(c){
+  const ic = { whatsapp:'🟢 WhatsApp', facebook:'🔵 Facebook', instagram:'🟣 Instagram', tiktok:'⚫ TikTok' };
+  c.innerHTML = `<div class="carte"><h2>🔗 Comptes réseaux connectés</h2><p class="sub">Tous les comptes WhatsApp / Facebook / Instagram reliés à la plateforme (jetons chiffrés, jamais affichés).</p>
+  ${CACHE.acc.length ? `<div class="scroll"><table><tr><th>Réseau</th><th>Compte</th><th>État</th><th>Connecté le</th></tr>
+    ${CACHE.acc.map(a=>`<tr><td>${ic[a.channel]||a.channel}</td><td><b>${esc(a.displayName)}</b><br><span class="mono" style="color:var(--gris)">${esc(a.externalId)}</span></td><td><span class="etat on">🟢 ${esc(a.status)}</span></td><td>${new Date(a.connectedAt).toLocaleDateString('fr-FR')}</td></tr>`).join('')}</table></div>`
+  : '<p style="color:var(--gris)">Aucun compte connecté pour le moment. Connectez-en un depuis l\'application cliente.</p>'}</div>
+  <div class="carte"><h2>💬 Derniers messages traités</h2><p class="sub">File d'attente : ${CACHE.queue.processed} traités · ${CACHE.queue.retried} réessais · ${CACHE.queue.failed} échecs.</p>
+  ${CACHE.msg.length ? CACHE.msg.map(m=>`<div style="border-bottom:1px solid var(--bord);padding:9px 0;font-size:13.5px"><b>${m.direction==='in'?'📩 Client':'🤖 IA'}</b> · ${ic[m.channel]||m.channel} · <span style="color:var(--gris)">${esc(m.contactName||'')}</span><br>${esc(m.text).slice(0,220)}${m.simulated?' <span class="etat warn">démo</span>':''}</div>`).join('') : '<p style="color:var(--gris)">Aucun message pour le moment.</p>'}
+  </div>`;
+}
+
+function renderPaiements(c){
+  const rev = Object.entries(CACHE.rev||{}).map(([k,v])=>`${fmt(v)} ${k}`).join(' · ') || '0';
+  c.innerHTML = `<div class="carte"><h2>💰 Paiements</h2><p class="sub">Revenus encaissés : <b>${esc(rev)}</b> · Fournisseur : ${CACHE.ov.systeme.paiementLive ? 'Flutterwave (réel)' : 'Simulation (ajoutez la clé Flutterwave à l\'Étape 6)'}.</p>
+  ${CACHE.pay.length ? `<div class="scroll"><table><tr><th>Date</th><th>Référence</th><th>Plan</th><th>Montant</th><th>Moyen</th><th>État</th><th>Crédits donnés</th></tr>
+  ${CACHE.pay.map(p=>`<tr><td>${new Date(p.createdAt).toLocaleString('fr-FR')}</td><td class="mono">${esc(p.providerRef)}</td><td>${esc(p.planCode)}</td><td><b>${p.amount} ${esc(p.currency)}</b></td><td>${esc(p.method)}</td><td><span class="etat ${p.status==='success'?'on':p.status==='pending'?'warn':'off'}">${p.status==='success'?'✅ Réussi':p.status==='pending'?'⏳ En attente':'❌ Échoué'}</span></td><td>${p.creditsGranted?fmt(p.creditsGranted):'—'}</td></tr>`).join('')}</table></div>`
+  : '<p style="color:var(--gris)">Aucun paiement pour le moment. Le premier achat de plan apparaîtra ici.</p>'}</div>`;
+}
+
+function renderSysteme(c){
+  const s = CACHE.ov.systeme;
+  const ligne = (nom, ok, detail) => `<tr><td><b>${nom}</b></td><td><span class="etat ${ok?'on':'warn'}">${ok?'✅ Actif':'🧪 Mode démo'}</span></td><td style="color:var(--gris)">${detail}</td></tr>`;
+  c.innerHTML = `<div class="carte"><h2>⚙️ État du système</h2><p class="sub">Ce qui est réel aujourd'hui, et ce qui attend vos clés (Étape 6).</p>
+  <div class="scroll"><table><tr><th>Service</th><th>État</th><th>Détail</th></tr>
+  ${ligne('Connexion Meta (WhatsApp/Facebook/Instagram)', s.metaLive, s.metaLive?'OAuth et envois réels':'Ajoutez META_APP_ID + META_APP_SECRET dans .env')}
+  ${ligne('Modèle d\'IA', s.iaLive, s.iaLive?'Vrai modèle branché':'Moteur local intelligent — ajoutez la clé IA dans .env')}
+  ${ligne('Paiement Mobile Money / carte', s.paiementLive, s.paiementLive?'Flutterwave réel':'Simulation — ajoutez la clé Flutterwave/CinetPay')}
+  ${ligne('Chiffrement des jetons', s.chiffrement, s.chiffrement?'AES-256-GCM actif':'Ajoutez TOKEN_ENCRYPTION_KEY (64 caractères) dans .env')}
+  ${ligne('File d\'attente messages', true, `${s.file.processed} traités · ${s.file.retried} réessais · ${s.file.failed} échecs`)}
+  </table></div></div>
+  <div class="carte"><h3>🧑‍💻 Accès rapides</h3><div class="mini">
+    <a class="btn" href="/api/meta/status" target="_blank">État Meta (JSON)</a>
+    <a class="btn" href="/api/plans" target="_blank">Prix publics actuels (JSON)</a>
+    <a class="btn" href="/api/health" target="_blank">Santé du serveur</a>
+  </div><p class="sub" style="margin-top:12px">🔐 Pensez à changer le code admin : fichier <span class="mono">.env</span> → <span class="mono">ADMIN_KEY=votre-code-secret</span>, puis redémarrez le serveur.</p></div>`;
+}
+
+// Session propriétaire vérifiée par le serveur (cookie). Sinon -> /admin.
+chargerTout().catch(()=>{ location.href='/admin'; });
+</script>
+</body>
+</html>

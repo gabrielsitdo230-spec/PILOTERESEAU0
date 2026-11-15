@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pilote Réseau — Votre assistant IA WhatsApp, Facebook & Instagram</title>
+<style>
+:root{
+  --vert:#00c853; --vert-d:#009624; --violet:#6c3ce9; --noir:#12141a; --gris:#5b6472;
+  --fond:#f6f7fb; --carte:#ffffff; --bord:#e6e8f0; --wa:#25D366; --fb:#1877F2; --ig:#E1306C;
+  --orange:#ff8a00; --rouge:#e5484d; --ombre:0 8px 30px rgba(18,20,26,.08);
+  --r:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--fond);color:var(--noir);line-height:1.55;font-size:16px}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select,textarea{font-family:inherit;font-size:16px}
+a{color:inherit;text-decoration:none}
+.hide{display:none!important}
+
+/* ============ LANDING ============ */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--bord)}
+.topbar-in{max-width:1100px;margin:auto;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:8px}
+.logo{font-weight:900;font-size:20px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo .ic{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--vert),var(--violet));display:grid;place-items:center;color:#fff;font-size:18px}
+.logo span{color:var(--violet)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:12px;font-weight:700;font-size:15px;transition:.15s;text-align:center}
+.btn:active{transform:scale(.98)}
+.btn-principal{background:var(--vert);color:#fff;box-shadow:0 6px 18px rgba(0,200,83,.35)}
+.btn-principal:hover{background:var(--vert-d)}
+.btn-violet{background:var(--violet);color:#fff}
+.btn-contour{background:#fff;border:2px solid var(--bord);color:var(--noir)}
+.btn-grand{padding:16px 28px;font-size:17px;border-radius:14px;width:100%}
+.btn-petit{padding:9px 14px;font-size:13px;border-radius:10px}
+.hero{max-width:1100px;margin:auto;padding:44px 16px 30px;text-align:center}
+.badge{display:inline-block;background:#e8f9ee;color:var(--vert-d);font-weight:700;font-size:13px;padding:6px 14px;border-radius:99px;margin-bottom:16px}
+.hero h1{font-size:36px;line-height:1.15;font-weight:900;letter-spacing:-.5px}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--vert),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.sub{color:var(--gris);font-size:18px;max-width:560px;margin:16px auto 24px}
+.reseaux-hero{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:20px 0}
+.pill{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--bord);padding:9px 16px;border-radius:99px;font-weight:700;font-size:14px;box-shadow:var(--ombre)}
+.dot{width:12px;height:12px;border-radius:4px;display:inline-block}
+.section{max-width:1100px;margin:auto;padding:34px 16px}
+.section h2{font-size:27px;font-weight:900;text-align:center;margin-bottom:8px}
+.section .sous{color:var(--gris);text-align:center;max-width:540px;margin:0 auto 26px}
+.grille3{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:760px){.grille3{grid-template-columns:repeat(3,1fr)}.hero h1{font-size:52px}}
+.carte{background:var(--carte);border:1px solid var(--bord);border-radius:var(--r);padding:22px;box-shadow:var(--ombre)}
+.carte h3{font-size:17px;margin:10px 0 6px}
+.carte p{color:var(--gris);font-size:14px}
+.gros-ic{font-size:34px}
+.etapes-num{display:flex;gap:12px;align-items:flex-start;text-align:left}
+.num{flex:0 0 38px;width:38px;height:38px;border-radius:50%;background:var(--violet);color:#fff;font-weight:900;display:grid;place-items:center}
+/* Demo chat */
+.demo{max-width:440px;margin:auto;background:#ece5dd;border-radius:20px;padding:16px;box-shadow:var(--ombre)}
+.demo-head{background:#075e54;color:#fff;margin:-16px -16px 14px;padding:12px 16px;border-radius:20px 20px 0 0;font-weight:700;display:flex;gap:10px;align-items:center}
+.bulle{max-width:82%;padding:10px 13px;border-radius:14px;margin:8px 0;font-size:14px;position:relative;animation:pop .3s}
+.bulle.client{background:#fff;margin-right:auto;border-bottom-left-radius:4px}
+.bulle.ia{background:#dcf8c6;margin-left:auto;border-bottom-right-radius:4px}
+.bulle small{display:block;color:#7a8699;font-size:11px;margin-top:4px;text-align:right}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+/* Tarifs */
+.plan{position:relative}
+.plan.pop{border:2px solid var(--violet)}
+.plan .tag{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--violet);color:#fff;font-size:12px;font-weight:800;padding:5px 14px;border-radius:99px;white-space:nowrap}
+.prix{font-size:34px;font-weight:900}
+.prix small{font-size:14px;color:var(--gris);font-weight:600}
+.plan ul{list-style:none;margin:14px 0;text-align:left}
+.plan li{padding:6px 0;font-size:14px;color:#333}
+.plan li::before{content:"✅ "}
+.faq details{background:#fff;border:1px solid var(--bord);border-radius:12px;padding:16px;margin-bottom:10px}
+.faq summary{font-weight:700;cursor:pointer}
+.faq p{color:var(--gris);margin-top:8px;font-size:14px}
+footer{border-top:1px solid var(--bord);padding:28px 16px;text-align:center;color:var(--gris);font-size:13px}
+
+/* ============ APP SHELL ============ */
+.app{display:flex;min-height:100vh}
+.side{width:230px;background:var(--noir);color:#cfd3dc;flex:0 0 230px;display:none;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
+@media(min-width:860px){.side{display:flex}}
+.side .logo{color:#fff;margin-bottom:22px;padding:0 8px}
+.nav a{display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:10px;font-size:14.5px;font-weight:600;margin-bottom:3px;color:#cfd3dc}
+.nav a.actif{background:var(--violet);color:#fff}
+.nav a:hover{background:#1e212b;color:#fff}
+.nav a.actif:hover{background:var(--violet)}
+.credits-box{margin-top:auto;background:#1e212b;border-radius:12px;padding:14px}
+.credits-box b{color:#fff;font-size:20px}
+.barre{height:8px;background:#333744;border-radius:99px;margin:8px 0;overflow:hidden}
+.barre i{display:block;height:100%;background:var(--vert);border-radius:99px}
+.main{flex:1;min-width:0;padding:18px 16px 110px;max-width:980px;margin:0 auto;width:100%}
+@media(min-width:860px){.main{padding-bottom:30px}}
+.app-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.app-head h1{font-size:23px;font-weight:900}
+.app-head .aide{color:var(--gris);font-size:13.5px}
+.avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--vert),var(--violet));color:#fff;display:grid;place-items:center;font-weight:900}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bord);display:flex;z-index:60;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+@media(min-width:860px){.bottomnav{display:none}}
+.bottomnav a{flex:1;text-align:center;font-size:10.5px;color:var(--gris);font-weight:700;padding:5px 2px;border-radius:8px}
+.bottomnav a span{display:block;font-size:19px}
+.bottomnav a.actif{color:var(--violet)}
+.stats4{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+@media(min-width:760px){.stats4{grid-template-columns:repeat(4,1fr)}}
+.stat{background:#fff;border:1px solid var(--bord);border-radius:var(--r);padding:16px}
+.stat .v{font-size:26px;font-weight:900}
+.stat .l{color:var(--gris);font-size:12.5px;font-weight:600}
+.ligne-assistant{display:flex;align-items:center;gap:13px;background:#fff;border:1px solid var(--bord);border-radius:var(--r);padding:15px;margin-bottom:11px;flex-wrap:wrap}
+.ic-reseau{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;color:#fff;flex:0 0 46px}
+.switch{position:relative;width:50px;height:28px;flex:0 0 50px}
+.switch input{opacity:0;width:100%;height:100%;position:absolute;cursor:pointer;z-index:2;margin:0}
+.switch .tr{position:absolute;inset:0;background:#cfd3dc;border-radius:99px;transition:.2s}
+.switch .tr::after{content:"";position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.2s;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.switch input:checked + .tr{background:var(--vert)}
+.switch input:checked + .tr::after{left:25px}
+.etat{font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px}
+.etat.on{background:#e8f9ee;color:var(--vert-d)}
+.etat.off{background:#fdecec;color:var(--rouge)}
+.aide-box{background:#f0ebff;border:1px solid #ddd0ff;border-radius:12px;padding:13px 15px;font-size:14px;margin-bottom:16px}
+.aide-box::before{content:"💡 "}
+.erreur-box{background:#fff4e5;border:1px solid #ffd8a8;border-radius:12px;padding:13px 15px;font-size:14px;margin:12px 0}
+label.champ{display:block;font-weight:700;font-size:14px;margin:16px 0 7px}
+input.ipt,select.ipt,textarea.ipt{width:100%;padding:13px 14px;border:2px solid var(--bord);border-radius:12px;background:#fff;outline:none}
+input.ipt:focus,select.ipt:focus,textarea.ipt:focus{border-color:var(--violet)}
+textarea.ipt{min-height:96px;resize:vertical}
+.prog{display:flex;gap:6px;margin:18px 0}
+.prog div{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--gris)}
+.prog .bar{height:7px;border-radius:99px;background:#e3e5ee;margin-bottom:6px}
+.prog div.actif{color:var(--violet)}
+.prog div.actif .bar,.prog div.fait .bar{background:var(--violet)}
+.prog div.fait{color:var(--vert-d)}
+.choix{display:grid;gap:10px;margin:10px 0}
+.choix button{text-align:left;background:#fff;border:2px solid var(--bord);border-radius:13px;padding:15px;font-weight:700;font-size:15px;display:flex;gap:11px;align-items:center}
+.choix button.sel{border-color:var(--violet);background:#f0ebff}
+.nav-bas{display:flex;gap:10px;margin-top:24px}
+.nav-bas .btn{flex:1}
+/* Playground / chat */
+.chatbox{background:#ece5dd;border-radius:18px;padding:14px;height:380px;overflow-y:auto;display:flex;flex-direction:column}
+.chat-input{display:flex;gap:8px;margin-top:11px}
+.chat-input input{flex:1;padding:13px;border:2px solid var(--bord);border-radius:12px;outline:none;min-width:0}
+.typing{display:inline-flex;gap:4px;padding:12px 15px;background:#fff;border-radius:14px;margin:8px 0}
+.typing i{width:7px;height:7px;background:#999;border-radius:50%;animation:ty 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes ty{0%,100%{opacity:.3}50%{opacity:1}}
+/* Inbox */
+.inbox{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:860px){.inbox{grid-template-columns:320px 1fr}}
+.conv{display:flex;gap:11px;padding:13px;border:1px solid var(--bord);border-radius:13px;background:#fff;margin-bottom:9px;cursor:pointer;text-align:left;width:100%}
+.conv.sel{border-color:var(--violet);background:#f7f4ff}
+.conv .nm{font-weight:800;font-size:14.5px}
+.conv .ap{color:var(--gris);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.nonlu{background:var(--rouge);color:#fff;font-size:11px;font-weight:800;border-radius:99px;min-width:20px;height:20px;display:grid;place-items:center;padding:0 5px}
+.mini-ic{width:38px;height:38px;border-radius:50%;color:#fff;display:grid;place-items:center;font-size:16px;flex:0 0 38px;font-weight:900}
+/* Stats bars */
+.hbar{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:13px}
+.hbar .lb{width:86px;font-weight:700;flex:0 0 86px}
+.hbar .tr{flex:1;background:#eceef5;height:20px;border-radius:8px;overflow:hidden}
+.hbar .tr i{display:block;height:100%;border-radius:8px}
+.hbar .vl{width:44px;text-align:right;font-weight:800;flex:0 0 44px}
+/* Modal */
+.modal-fond{position:fixed;inset:0;background:rgba(10,10,20,.55);z-index:100;display:grid;place-items:end center;padding:0}
+@media(min-width:700px){.modal-fond{place-items:center;padding:18px}}
+.modal{background:#fff;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;border-radius:22px 22px 0 0;padding:26px 22px}
+@media(min-width:700px){.modal{border-radius:22px}}
+.modal h2{font-size:21px;margin-bottom:6px}
+.modal .x{float:right;background:#f1f2f7;width:36px;height:36px;border-radius:50%;font-size:16px}
+.moyens{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:13px 0}
+.moyens button{border:2px solid var(--bord);background:#fff;border-radius:12px;padding:13px 8px;font-weight:800;font-size:13.5px}
+.moyens button.sel{border-color:var(--vert);background:#e8f9ee}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:92px;background:var(--noir);color:#fff;padding:13px 20px;border-radius:12px;font-weight:700;font-size:14px;z-index:200;box-shadow:var(--ombre);max-width:92vw;text-align:center}
+@media(min-width:860px){.toast{bottom:26px}}
+.qr{width:190px;height:190px;margin:16px auto;background:#fff;border:2px solid var(--noir);border-radius:12px;display:grid;place-items:center;font-size:12px;color:var(--gris);padding:12px;text-align:center;
+background-image:repeating-conic-gradient(#12141a 0% 25%, #fff 0% 50%);background-size:22px 22px;opacity:.92}
+.tabrow{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px}
+.tabrow button{white-space:nowrap;padding:9px 15px;border-radius:99px;border:2px solid var(--bord);background:#fff;font-weight:700;font-size:13.5px}
+.tabrow button.sel{background:var(--noir);color:#fff;border-color:var(--noir)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--bord);text-align:left}
+th{color:var(--gris);font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- ================= VUE PUBLIQUE ================= -->
+<div id="vue-publique">
+  <div class="topbar"><div class="topbar-in">
+    <div class="logo"><span class="ic">🚀</span>Pilote<span>Réseau</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-contour btn-petit" onclick="ouvrirAuth('connexion')">Se connecter</button>
+      <button class="btn btn-principal btn-petit" onclick="ouvrirAuth('inscription')">Commencer</button>
+    </div>
+  </div></div>
+
+  <div class="hero">
+    <span class="badge">✨ Sans aucune compétence technique</span>
+    <h1>Vos clients écrivent.<br><em>Votre assistant IA répond.</em></h1>
+    <p class="sub">Pilote Réseau répond automatiquement à vos clients sur WhatsApp, Facebook et Instagram — 24h/24, en moins de 10 secondes, même quand vous dormez.</p>
+    <button class="btn btn-principal btn-grand" style="max-width:420px" onclick="ouvrirAuth('inscription')">Créer mon assistant gratuit →</button>
+    <p style="color:var(--gris);font-size:13px;margin-top:10px">Prêt en moins de 10 minutes · Aucune carte demandée</p>
+    <div class="reseaux-hero">
+      <span class="pill"><span class="dot" style="background:var(--wa)"></span>WhatsApp</span>
+      <span class="pill"><span class="dot" style="background:var(--fb)"></span>Facebook</span>
+      <span class="pill"><span class="dot" style="background:var(--ig)"></span>Instagram</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Regardez-le travailler 👀</h2>
+    <p class="sous">Un client écrit à 23h. Voici ce qui se passe, sans que vous touchiez à votre téléphone :</p>
+    <div class="demo">
+      <div class="demo-head">🟢 Boutique Amina · en ligne</div>
+      <div class="bulle client">Bonsoir, vous livrez à Kinshasa ? C'est combien la robe rouge ?<small>23:02</small></div>
+      <div class="bulle ia">Bonsoir et bienvenue chez Boutique Amina 😊 Oui, nous livrons à Kinshasa sous 24h ! La robe rouge est à 45 $. La livraison coûte 5 $, offerte dès 60 $ d'achat. Vous voulez que je vous la réserve ?<small>23:02 · IA ✓✓</small></div>
+      <div class="bulle client">Oui réserve-la moi, taille M<small>23:03</small></div>
+      <div class="bulle ia">C'est réservé pour vous ✅ Taille M, à récupérer demain ou livrée chez vous. Je vous envoie le lien de paiement ?<small>23:03 · IA ✓✓</small></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Comment ça marche ?</h2>
+    <p class="sous">4 étapes simples. Si vous savez utiliser WhatsApp, vous savez utiliser Pilote Réseau.</p>
+    <div class="grille3" style="grid-template-columns:1fr" >
+      <div style="display:grid;gap:14px;max-width:640px;margin:auto;width:100%">
+        <div class="carte etapes-num"><div class="num">1</div><div><h3 style="margin:0 0 4px">Créez votre assistant</h3><p>Répondez à 5 questions simples sur votre activité. L'IA écrit elle-même ses instructions.</p></div></div>
+        <div class="carte etapes-num"><div class="num">2</div><div><h3 style="margin:0 0 4px">Donnez-lui sa mission</h3><p>Répondre aux clients, prendre des rendez-vous, vendre, aider… Vous choisissez.</p></div></div>
+        <div class="carte etapes-num"><div class="num">3</div><div><h3 style="margin:0 0 4px">Testez-le</h3><p>Discutez avec lui comme un client, dans notre espace de test. Corrigez jusqu'à ce qu'il vous plaise.</p></div></div>
+        <div class="carte etapes-num"><div class="num">4</div><div><h3 style="margin:0 0 4px">Connectez et c'est parti 🎉</h3><p>WhatsApp par QR code, Facebook et Instagram en un clic. Il répond tout seul, jour et nuit.</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Tarifs simples, en Mobile Money 📱</h2>
+    <p class="sous">1 message répondu par l'IA = 1 crédit. Vous payez par Orange Money, M-Pesa, MTN, Airtel ou par carte.</p>
+    <div class="grille3">
+      <div class="carte plan" style="text-align:center"><h3>Starter</h3><div class="prix">9 $<small> /mois</small></div><ul><li>500 messages IA / mois</li><li>1 réseau au choix</li><li>Base de connaissances</li><li>Boîte de réception unique</li></ul><button class="btn btn-contour" style="width:100%" onclick="ouvrirAuth('inscription')">Choisir Starter</button></div>
+      <div class="carte plan pop" style="text-align:center"><span class="tag">⭐ LE PLUS CHOISI</span><h3>Pro</h3><div class="prix">24 $<small> /mois</small></div><ul><li>2 500 messages IA / mois</li><li>WhatsApp + Facebook + Instagram</li><li>Connaissances illimitées</li><li>Statistiques avancées</li><li>Support prioritaire</li></ul><button class="btn btn-violet" style="width:100%" onclick="ouvrirAuth('inscription')">Choisir Pro</button></div>
+      <div class="carte plan" style="text-align:center"><h3>Business</h3><div class="prix">59 $<small> /mois</small></div><ul><li>10 000 messages IA / mois</li><li>3 réseaux + équipe</li><li>Tout le plan Pro</li><li>Accompagnement dédié</li></ul><button class="btn btn-contour" style="width:100%" onclick="ouvrirAuth('inscription')">Choisir Business</button></div>
+    </div>
+    <p style="text-align:center;color:var(--gris);font-size:13px;margin-top:14px">💡 Les prix sont des exemples de démonstration — vous fixerez vos vrais tarifs à l'Étape 5.</p>
+  </div>
+
+  <div class="section faq" style="max-width:760px">
+    <h2>Questions fréquentes</h2><p class="sous"></p>
+    <details><summary>Je ne suis pas informaticien, je vais y arriver ?</summary><p>Oui, c'est fait pour vous. Vous répondez à 5 questions simples, vous testez, vous connectez en un clic. Aucun code, aucun mot compliqué.</p></details>
+    <details><summary>Et si l'IA ne sait pas répondre ?</summary><p>Elle vous prévient aussitôt et vous reprenez la conversation vous-même, depuis la même boîte de réception. Vous pouvez aussi mettre l'assistant en pause à tout moment.</p></details>
+    <details><summary>WhatsApp peut-il bloquer mon numéro ?</summary><p>Nous utilisons les outils officiels de Meta et respectons leurs règles (réponses dans les 24h, cadence limitée). C'est la méthode la plus sûre.</p></details>
+    <details><summary>Mes données sont-elles en sécurité ?</summary><p>Oui. Vos conversations ne servent jamais à entraîner des IA. Chaque client ne voit que ses propres données.</p></details>
+    <details><summary>Comment je paie ?</summary><p>Par Mobile Money (Orange Money, M-Pesa, MTN MoMo, Airtel Money) ou par carte bancaire. Simple et local.</p></details>
+  </div>
+
+  <div class="section" style="text-align:center">
+    <h2>Prêt à ne plus jamais rater un client ?</h2>
+    <p class="sous">Votre premier assistant peut être actif avant la fin de votre café ☕</p>
+    <button class="btn btn-principal btn-grand" style="max-width:420px" onclick="ouvrirAuth('inscription')">Commencer gratuitement →</button>
+  </div>
+  <footer>© 2026 Pilote Réseau · Fait avec ❤️ pour les entrepreneurs africains<br><a href="#" onclick="toast('Page légale : prévue à l\'Étape 6');return false">Confidentialité</a> · <a href="#" onclick="toast('Conditions : prévues à l\'Étape 6');return false">Conditions d'utilisation</a></footer>
+</div>
+
+<!-- ================= VUE APPLICATION ================= -->
+<div id="vue-app" class="app hide">
+  <aside class="side">
+    <div class="logo"><span class="ic">🚀</span>Pilote<span>Réseau</span></div>
+    <nav class="nav" id="nav-side"></nav>
+    <div class="credits-box"><div style="font-size:12px;font-weight:700">💳 Crédits messages</div><b id="credits-val-side">340</b> <span style="font-size:12px">/ 500</span><div class="barre"><i id="credits-bar-side" style="width:68%"></i></div><button class="btn btn-principal btn-petit" style="width:100%" onclick="aller('credits')">Recharger</button></div>
+  </aside>
+
+  <div class="main">
+    <div class="app-head"><div><h1 id="titre-page">Tableau de bord</h1><div class="aide" id="aide-page">Voici ce que vos assistants ont fait pour vous.</div></div><div style="display:flex;align-items:center;gap:10px"><span class="etat on" id="credits-pill">💳 340 crédits</span><div class="avatar">K</div></div></div>
+    <div id="page-contenu"></div>
+  </div>
+
+  <nav class="bottomnav" id="nav-bas"></nav>
+</div>
+
+<div id="zone-modal"></div>
+<div id="zone-toast"></div>
+
+<script>
+/* ================= DONNÉES SIMULÉES (Étape 2) ================= */
+const ETAT = {
+  credits: 340, creditsMax: 500, plan: 'Starter',
+  assistants: [
+    {id:1, nom:'Boutique Amina — WhatsApp', reseau:'whatsapp', mission:'Vendre vos produits', actif:true, connecte:true, msgs:128},
+    {id:2, nom:'Boutique Amina — Facebook', reseau:'facebook', mission:'Répondre aux clients', actif:true, connecte:true, msgs:86},
+    {id:3, nom:'Salon Beauté Divine — Instagram', reseau:'instagram', mission:'Prendre des rendez-vous', actif:false, connecte:false, msgs:0},
+  ],
+  connaissances: [
+    {titre:'Nos prix et produits', type:'Texte', statut:'Prêt'},
+    {titre:'Catalogue 2026.pdf', type:'PDF', statut:'Prêt'},
+    {titre:'Questions fréquentes livraison', type:'Texte', statut:'Prêt'},
+  ],
+  conversations: [
+    {id:1, nom:'Marie', reseau:'whatsapp', apercu:'Oui réserve-la moi, taille M', heure:'10:24', nonlu:1, statut:'ia',
+     msgs:[['client','Bonsoir, vous livrez à Kinshasa ? La robe rouge coûte combien ?'],['ia','Bonsoir 😊 Oui, livraison à Kinshasa sous 24h ! La robe rouge est à 45 $, livraison 5 $ (offerte dès 60 $). Je vous la réserve ?'],['client','Oui réserve-la moi, taille M'],['ia','C\'est réservé ✅ Taille M. Je vous envoie le lien de paiement ?']]},
+    {id:2, nom:'Jean Mukendi', reseau:'facebook', apercu:'Je veux commander 20 pièces', heure:'09:51', nonlu:2, statut:'ia',
+     msgs:[['client','Bonjour, je suis revendeur à Lubumbashi'],['client','Je veux commander 20 pièces, vous faites un prix de gros ?'],['ia','Bonjour Jean et merci ! 😊 Pour 20 pièces, nous faisons -15%. Je prépare un devis ?']]},
+    {id:3, nom:'Sarah', reseau:'instagram', apercu:'Vous êtes ouverts dimanche ?', heure:'Hier', nonlu:0, statut:'humain',
+     msgs:[['client','Vous êtes ouverts dimanche ?'],['ia','Bonjour Sarah 🌸 Oui, le dimanche de 10h à 16h ! Vous voulez un rendez-vous ?'],['client','Je préfère parler à quelqu\'un'],['humain','(Vous avez repris la main sur cette conversation)']]},
+    {id:4, nom:'+243 815 000 000', reseau:'whatsapp', apercu:'Merci beaucoup !', heure:'Hier', nonlu:0, statut:'ia',
+     msgs:[['client','Merci beaucoup !'],['ia','Avec grand plaisir 🙏 À très vite !']]},
+  ],
+  convOuverte: 1,
+  histo: [
+    {date:"Aujourd'hui, 10:12", quoi:'Achat de 500 crédits', montant:'+500', type:'achat'},
+    {date:"Aujourd'hui, 09:40", quoi:'Message IA · WhatsApp', montant:'−1', type:'msg'},
+    {date:"Hier, 18:22", quoi:'Messages IA · Facebook (×14)', montant:'−14', type:'msg'},
+    {date:'12 nov., 08:00', quoi:'Bonus de bienvenue', montant:'+100', type:'bonus'},
+  ]
+};
+const RESEAUX = {
+  whatsapp:{nom:'WhatsApp', icone:'🟢', emoji:'💬', couleur:'var(--wa)'},
+  facebook:{nom:'Facebook', icone:'🔵', emoji:'👍', couleur:'var(--fb)'},
+  instagram:{nom:'Instagram', icone:'🟣', emoji:'📸', couleur:'var(--ig)'}
+};
+const PAGES = {
+  dashboard:{titre:'Tableau de bord', aide:'Voici ce que vos assistants ont fait pour vous.', icone:'🏠', label:'Accueil'},
+  assistants:{titre:'Mes assistants', aide:'Un assistant par réseau. Mettez en pause quand vous voulez.', icone:'🤖', label:'Assistants'},
+  boite:{titre:'Boîte de réception', aide:'Toutes vos conversations au même endroit.', icone:'💬', label:'Messages'},
+  connaissances:{titre:'Base de connaissances', aide:'Ce que votre assistant doit savoir sur votre activité.', icone:'📚', label:'Savoirs'},
+  stats:{titre:'Statistiques', aide:'Vos résultats en un coup d\'œil.', icone:'📊', label:'Stats'},
+  credits:{titre:'Crédits & paiement', aide:'1 message de l\'IA = 1 crédit. Simple.', icone:'💳', label:'Crédits'},
+  parametres:{titre:'Paramètres', aide:'Votre compte et vos préférences.', icone:'⚙️', label:'Réglages'},
+};
+let pageActuelle = 'dashboard';
+
+function toast(msg){ const z=document.getElementById('zone-toast'); z.innerHTML=`<div class="toast">${msg}</div>`; setTimeout(()=>z.innerHTML='',3400); }
+function majCredits(){ ['credits-val-side'].forEach(id=>{const e=document.getElementById(id); if(e) e.textContent=ETAT.credits;});
+  const b=document.getElementById('credits-bar-side'); if(b) b.style.width=Math.max(0,ETAT.credits/ETAT.creditsMax*100)+'%';
+  const p=document.getElementById('credits-pill'); if(p) p.textContent=`💳 ${ETAT.credits} crédits`; }
+
+function navHTML(){ return Object.keys(PAGES).map(k=>`<a href="#" data-page="${k}" class="${pageActuelle===k?'actif':''}" onclick="aller('${k}');return false"><span>${PAGES[k].icone}</span>${PAGES[k].label}</a>`).join(''); }
+function aller(page){ pageActuelle=page; document.getElementById('nav-side').innerHTML=navHTML();
+  document.getElementById('nav-bas').innerHTML=Object.keys(PAGES).slice(0,5).map(k=>`<a href="#" class="${pageActuelle===k?'actif':''}" onclick="aller('${k}');return false"><span>${PAGES[k].icone}</span>${PAGES[k].label}</a>`).join('') + `<a href="#" class="${pageActuelle==='credits'?'actif':''}" onclick="aller('credits');return false"><span>💳</span>Crédits</a>`;
+  document.getElementById('titre-page').textContent=PAGES[page].titre; document.getElementById('aide-page').textContent=PAGES[page].aide;
+  window.scrollTo(0,0); RENDER[page](); majCredits(); }
+function entrerApp(){ document.getElementById('vue-publique').classList.add('hide'); document.getElementById('vue-app').classList.remove('hide'); aller('dashboard'); toast('👋 Bienvenue dans Pilote Réseau !'); }
+
+/* ================= MODAL AUTH ================= */
+function ouvrirAuth(mode){
+  document.getElementById('zone-modal').innerHTML = `<div class="modal-fond" onclick="if(event.target===this)fermerModal()"><div class="modal">
+    <button class="x" onclick="fermerModal()">✕</button>
+    <h2>${mode==='inscription'?'Créez votre compte 🎉':'Bon retour 👋'}</h2>
+    <p style="color:var(--gris);font-size:14px">${mode==='inscription'?'Votre premier assistant peut être actif en 10 minutes.':'Content de vous revoir !'}</p>
+    ${mode==='inscription'?'<label class="champ">Votre nom ou nom de votre boutique</label><input class="ipt" placeholder="Ex : Boutique Amina">':''}
+    <label class="champ">Numéro de téléphone ou email</label><input class="ipt" placeholder="+243 … ou vous@exemple.com">
+    <label class="champ">Mot de passe</label><input class="ipt" type="password" placeholder="••••••••">
+    <div style="height:16px"></div>
+    <button class="btn btn-principal btn-grand" onclick="fermerModal();entrerApp()">${mode==='inscription'?'Créer mon compte gratuit':'Se connecter'}</button>
+    <button class="btn btn-contour btn-grand" style="margin-top:10px" onclick="fermerModal();entrerApp()">🔵 Continuer avec Facebook</button>
+    <p style="text-align:center;font-size:13px;color:var(--gris);margin-top:14px">${mode==='inscription'?'Déjà un compte ? <a href="#" style="color:var(--violet);font-weight:700" onclick="ouvrirAuth(\'connexion\');return false">Se connecter</a>':'Pas encore de compte ? <a href="#" style="color:var(--violet);font-weight:700" onclick="ouvrirAuth(\'inscription\');return false">Créer un compte</a>'}</p>
+  </div></div>`;
+}
+function fermerModal(){ document.getElementById('zone-modal').innerHTML=''; }
+
+/* ================= PAGES ================= */
+const RENDER = {
+
+dashboard(){
+  const total = ETAT.assistants.reduce((a,b)=>a+b.msgs,0);
+  document.getElementById('page-contenu').innerHTML = `
+  <div class="aide-box">Vos assistants ont répondu à <b>${total} messages</b> ce mois-ci. Vous n'avez rien eu à faire 🎉</div>
+  <div class="stats4">
+    <div class="stat"><div class="v">214</div><div class="l">💬 Messages répondus</div></div>
+    <div class="stat"><div class="v">4 sec</div><div class="l">⚡ Temps de réponse moyen</div></div>
+    <div class="stat"><div class="v">${ETAT.credits}</div><div class="l">💳 Crédits restants</div></div>
+    <div class="stat"><div class="v">31</div><div class="l">🎯 Clients intéressés détectés</div></div>
+  </div>
+  <div class="carte" style="margin-bottom:14px"><h3 style="margin-top:0">🚀 Que voulez-vous faire ?</h3>
+    <div style="display:grid;gap:9px;margin-top:12px">
+      <button class="btn btn-principal" onclick="lancerCreation()">➕ Créer un nouvel assistant</button>
+      <button class="btn btn-contour" onclick="aller('boite')">💬 Voir mes conversations</button>
+      <button class="btn btn-contour" onclick="aller('credits')">💳 Recharger mes crédits</button>
+    </div></div>
+  <h3 style="margin:18px 0 10px">Vos assistants</h3>
+  ${ETAT.assistants.map(a=>ligneAssistant(a)).join('')}`;
+},
+
+assistants(){
+  document.getElementById('page-contenu').innerHTML = `
+  <button class="btn btn-principal btn-grand" onclick="lancerCreation()">➕ Créer un nouvel assistant</button>
+  <div style="height:14px"></div>
+  ${ETAT.assistants.map(a=>ligneAssistant(a)).join('')}
+  <div class="aide-box">Astuce : le bouton ⏸ met votre assistant en pause. Vos clients voient alors un message d'attente, et vous reprenez la main.</div>`;
+},
+
+boite(){
+  const c = ETAT.conversations.find(x=>x.id===ETAT.convOuverte) || ETAT.conversations[0];
+  document.getElementById('page-contenu').innerHTML = `
+  <div class="tabrow"><button class="sel">Tout</button><button>🟢 WhatsApp</button><button>🔵 Facebook</button><button>🟣 Instagram</button><button>🙋 À moi de répondre</button></div>
+  <div class="inbox">
+    <div>${ETAT.conversations.map(cv=>`
+      <button class="conv ${cv.id===c.id?'sel':''}" onclick="ouvrirConv(${cv.id})">
+        <span class="mini-ic" style="background:${RESEAUX[cv.reseau].couleur}">${cv.nom[0]}</span>
+        <span style="flex:1;min-width:0"><span class="nm">${RESEAUX[cv.reseau].emoji} ${cv.nom}</span><br><span class="ap">${cv.apercu}</span></span>
+        <span style="text-align:right"><span style="font-size:11px;color:var(--gris)">${cv.heure}</span>${cv.nonlu?`<br><span class="nonlu">${cv.nonlu}</span>`:''}</span>
+      </button>`).join('')}</div>
+    <div class="carte" style="padding:16px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--bord);padding-bottom:12px">
+        <span class="mini-ic" style="background:${RESEAUX[c.reseau].couleur}">${c.nom[0]}</span>
+        <div style="flex:1"><b>${c.nom}</b><br><span style="font-size:12px;color:var(--gris)">${RESEAUX[c.reseau].nom} · ${c.statut==='humain'?'🙋 Vous gérez cette conversation':'🤖 L\'IA s\'en occupe'}</span></div>
+        ${c.statut==='humain'
+          ? '<button class="btn btn-violet btn-petit" onclick="reprendreIA()">🤖 Redonner à l\'IA</button>'
+          : '<button class="btn btn-contour btn-petit" onclick="reprendreMain()">🙋 Reprendre la main</button>'}
+        <button class="btn btn-contour btn-petit" onclick="toast('⏸ Assistant mis en pause pour cette conversation')">⏸ Pause</button>
+      </div>
+      <div class="chatbox" style="height:300px;margin-top:12px" id="inbox-chat">
+        ${c.msgs.map(m=>`<div class="bulle ${m[0]==='client'?'client':'ia'}">${m[1]}<small>${m[0]==='ia'?'IA · ✓✓':m[0]==='humain'?'Vous':'Client'}</small></div>`).join('')}
+      </div>
+      <div class="chat-input"><input id="inbox-input" placeholder="Écrivez votre réponse…" onkeydown="if(event.key==='Enter')envoyerInbox()"><button class="btn btn-principal" onclick="envoyerInbox()">Envoyer</button></div>
+      <p style="font-size:12px;color:var(--gris);margin-top:8px">💡 Quand vous écrivez vous-même, l'IA se met en pause automatiquement sur cette conversation.</p>
+    </div>
+  </div>`;
+  const ch=document.getElementById('inbox-chat'); if(ch) ch.scrollTop=ch.scrollHeight;
+},
+
+connaissances(){
+  document.getElementById('page-contenu').innerHTML = `
+  <div class="aide-box">Apprenez à votre assistant tout ce qu'il doit savoir : vos prix, vos produits, vos horaires… Il ne répondra qu'avec ces informations.</div>
+  <div class="carte" style="margin-bottom:14px"><h3 style="margin-top:0">➕ Ajouter une information</h3>
+    <div class="choix">
+      <button onclick="ajoutConnaissance('Texte')">✍️ Écrire un texte <span style="color:var(--gris);font-weight:400;font-size:13px">— prix, horaires, conditions…</span></button>
+      <button onclick="ajoutConnaissance('PDF')">📄 Envoyer un PDF <span style="color:var(--gris);font-weight:400;font-size:13px">— catalogue, liste de prix…</span></button>
+      <button onclick="ajoutConnaissance('Lien')">🔗 Ajouter un lien <span style="color:var(--gris);font-weight:400;font-size:13px">— page de votre site ou boutique</span></button>
+    </div></div>
+  <h3 style="margin:6px 0 10px">Ce que votre assistant sait déjà</h3>
+  <div id="liste-connaissances">${ETAT.connaissances.map(k=>`<div class="ligne-assistant"><span class="gros-ic" style="font-size:26px">${k.type==='PDF'?'📄':k.type==='Lien'?'🔗':'✍️'}</span><div style="flex:1"><b>${k.titre}</b><br><span style="font-size:12.5px;color:var(--gris)">${k.type}</span></div><span class="etat on">✅ ${k.statut}</span><button class="btn btn-contour btn-petit" onclick="toast('🗑 Supprimé (démo)')">🗑</button></div>`).join('')}</div>`;
+},
+
+stats(){
+  document.getElementById('page-contenu').innerHTML = `
+  <div class="stats4">
+    <div class="stat"><div class="v">214</div><div class="l">💬 Messages ce mois</div></div>
+    <div class="stat"><div class="v">4 sec</div><div class="l">⚡ Réponse moyenne</div></div>
+    <div class="stat"><div class="v">31</div><div class="l">🎯 Prospects qualifiés</div></div>
+    <div class="stat"><div class="v">12</div><div class="l">🙋 Passages à un humain</div></div>
+  </div>
+  <div class="carte" style="margin-bottom:14px"><h3 style="margin-top:0">Messages par réseau</h3>
+    ${[['WhatsApp',128,'var(--wa)'],['Facebook',86,'var(--fb)'],['Instagram',0,'var(--ig)']].map(r=>`<div class="hbar"><span class="lb">${r[0]}</span><span class="tr"><i style="width:${r[1]/1.4}%;background:${r[2]}"></i></span><span class="vl">${r[1]}</span></div>`).join('')}
+    <p style="font-size:13px;color:var(--gris)">Instagram n'est pas encore connecté. <a href="#" style="color:var(--violet);font-weight:700" onclick="lancerCreation();return false">Le connecter →</a></p></div>
+  <div class="carte"><h3 style="margin-top:0">Heures où vos clients écrivent le plus</h3>
+    ${[['Soir 18h–23h',78,'var(--violet)'],['Après-midi',52,'var(--violet)'],['Matin',44,'var(--violet)'],['Nuit 23h–6h',40,'var(--violet)']].map(r=>`<div class="hbar"><span class="lb">${r[0]}</span><span class="tr"><i style="width:${r[1]}%;background:${r[2]}"></i></span><span class="vl">${r[1]}%</span></div>`).join('')}
+    <div class="aide-box" style="margin:12px 0 0">🌙 40% de vos clients écrivent la nuit. Sans Pilote Réseau, ces clients partaient chez vos concurrents.</div></div>`;
+},
+
+credits(){
+  document.getElementById('page-contenu').innerHTML = `
+  <div class="carte" style="text-align:center;margin-bottom:14px"><div style="color:var(--gris);font-weight:700;font-size:13px">VOS CRÉDITS MESSAGES</div>
+    <div style="font-size:46px;font-weight:900">${ETAT.credits}</div><div style="color:var(--gris)">sur ${ETAT.creditsMax} · Plan ${ETAT.plan}</div>
+    <div class="barre" style="max-width:340px;margin:12px auto"><i style="width:${ETAT.credits/ETAT.creditsMax*100}%"></i></div>
+    ${ETAT.credits<150?'<div class="erreur-box">⚠️ Il vous reste peu de crédits. Rechargez pour que votre assistant ne s\'arrête jamais.</div>':''}
+  </div>
+  <h3 style="margin:14px 0 10px">Recharger ou changer de plan</h3>
+  <div class="grille3">
+    ${[['Starter','9 $',500],['Pro','24 $',2500],['Business','59 $',10000]].map(p=>`<div class="carte plan" style="text-align:center"><h3>${p[0]}</h3><div class="prix">${p[1]}<small> /mois</small></div><p>${p[2].toLocaleString('fr-FR')} messages IA inclus</p><button class="btn ${ETAT.plan===p[0]?'btn-contour':'btn-violet'}" style="width:100%;margin-top:10px" ${ETAT.plan===p[0]?'disabled':''} onclick="ouvrirPaiement('${p[0]}',${p[2]},'${p[1]}')">${ETAT.plan===p[0]?'✔ Plan actuel':'Choisir'}</button></div>`).join('')}
+  </div>
+  <div class="carte" style="margin-top:14px"><h3 style="margin-top:0">Historique</h3>
+    <table><tr><th>Date</th><th>Détail</th><th style="text-align:right">Crédits</th></tr>
+    ${ETAT.histo.map(h=>`<tr><td style="color:var(--gris)">${h.date}</td><td>${h.quoi}</td><td style="text-align:right;font-weight:800;color:${h.montant.startsWith('+')?'var(--vert-d)':'var(--noir)'}">${h.montant}</td></tr>`).join('')}</table></div>`;
+},
+
+parametres(){
+  document.getElementById('page-contenu').innerHTML = `
+  <div class="carte" style="margin-bottom:14px"><h3 style="margin-top:0">👤 Mon compte</h3>
+    <label class="champ">Nom / Boutique</label><input class="ipt" value="Boutique Amina">
+    <label class="champ">Téléphone</label><input class="ipt" value="+243 815 000 000">
+    <label class="champ">Langue de l'interface</label><select class="ipt"><option>Français</option><option>English</option><option>Português</option><option>Swahili</option><option>Lingala</option></select>
+    <div style="height:14px"></div><button class="btn btn-principal" onclick="toast('✅ Modifications enregistrées')">Enregistrer</button></div>
+  <div class="carte" style="margin-bottom:14px"><h3 style="margin-top:0">🔔 Alertes passage à un humain</h3>
+    <p style="color:var(--gris);font-size:14px;margin-bottom:10px">Recevez une alerte quand un client veut parler à une vraie personne.</p>
+    ${['Dans l\'application','Par email','Par WhatsApp (numéro admin)'].map((a,i)=>`<label style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;font-weight:600;font-size:14.5px">${a}<span class="switch"><input type="checkbox" ${i<2?'checked':''}><span class="tr"></span></span></label>`).join('')}</div>
+  <div class="carte"><h3 style="margin-top:0">🔐 Sécurité</h3>
+    <div style="display:grid;gap:9px"><button class="btn btn-contour" onclick="toast('🔑 Un email de réinitialisation arrive (démo)')">Changer mon mot de passe</button>
+    <button class="btn btn-contour" onclick="if(confirm('Voulez-vous vraiment vous déconnecter ?')){document.getElementById('vue-app').classList.add('hide');document.getElementById('vue-publique').classList.remove('hide');window.scrollTo(0,0)}">Se déconnecter</button></div></div>`;
+}
+};
+
+function ligneAssistant(a){
+  const r = RESEAUX[a.reseau];
+  return `<div class="ligne-assistant">
+    <span class="ic-reseau" style="background:${r.couleur}">${r.emoji}</span>
+    <div style="flex:1;min-width:180px"><b>${a.nom}</b><br><span style="font-size:12.5px;color:var(--gris)">Mission : ${a.mission} · ${a.connecte?a.msgs+' messages ce mois':'Non connecté'}</span></div>
+    <span class="etat ${a.actif&&a.connecte?'on':'off'}">${!a.connecte?'⚪ À connecter':a.actif?'🟢 Actif':'⏸ En pause'}</span>
+    <label class="switch" title="Activer / Pause"><input type="checkbox" ${a.actif?'checked':''} onchange="basculerAssistant(${a.id},this.checked)"><span class="tr"></span></label>
+    ${a.connecte?`<button class="btn btn-contour btn-petit" onclick="aller('boite')">💬 Voir</button>`:`<button class="btn btn-principal btn-petit" onclick="lancerCreation()">Connecter</button>`}
+  </div>`;
+}
+function basculerAssistant(id,on){ const a=ETAT.assistants.find(x=>x.id===id); a.actif=on; toast(on?`🟢 « ${a.nom} » est actif`:`⏸ « ${a.nom} » est en pause — vos clients verront un message d'attente`); RENDER[pageActuelle](); }
+function ouvrirConv(id){ ETAT.convOuverte=id; const c=ETAT.conversations.find(x=>x.id===id); if(c) c.nonlu=0; RENDER.boite(); }
+function reprendreMain(){ const c=ETAT.conversations.find(x=>x.id===ETAT.convOuverte); c.statut='humain'; c.msgs.push(['humain','🙋 Vous avez pris la main. L\'IA est en pause sur cette conversation.']); RENDER.boite(); toast('🙋 C\'est à vous ! L\'IA est en pause ici.'); }
+function reprendreIA(){ const c=ETAT.conversations.find(x=>x.id===ETAT.convOuverte); c.statut='ia'; c.msgs.push(['ia','🤖 Je reprends la suite avec plaisir ! Comment puis-je vous aider ?']); RENDER.boite(); toast('🤖 L\'IA a repris la conversation'); }
+function envoyerInbox(){ const inp=document.getElementById('inbox-input'); if(!inp.value.trim())return; const c=ETAT.conversations.find(x=>x.id===ETAT.convOuverte); c.msgs.push(['humain',inp.value]); if(c.statut!=='humain'){c.statut='humain';} RENDER.boite(); toast('✅ Message envoyé (0 crédit : c\'est vous qui écrivez)'); }
+function ajoutConnaissance(type){ const titre = type==='PDF'?'Nouveau catalogue.pdf':type==='Lien'?'Lien ajouté':'Nouvelle information'; ETAT.connaissances.unshift({titre, type, statut:'Prêt'}); RENDER.connaissances(); toast(`✅ « ${titre} » ajouté — votre assistant le connaît déjà !`); }
+
+/* ================= CRÉATION ASSISTANT (4 étapes) ================= */
+let CREA = {etape:1, reseau:'whatsapp', mission:'Répondre aux clients', q:{}};
+const MISSIONS = [['💬','Répondre aux clients','Répond à toutes les questions, 24h/24'],['📅','Prendre des rendez-vous','Propose vos horaires et note les rendez-vous'],['🎯','Trouver des clients intéressés','Pose les bonnes questions aux prospects'],['🛟','Aider les clients (support)','Résout les petits problèmes, rassure'],['🛍️','Vendre vos produits','Présente vos produits et aide à commander']];
+const QUESTIONS = [
+  ['Quel est le nom de votre activité ?', 'Ex : Boutique Amina, Salon Beauté Divine…'],
+  ['Que vendez-vous ou quel service proposez-vous ?', 'Ex : Des robes et chaussures pour femmes, livraison à Kinshasa'],
+  ['Dans quelle ville / zone travaillez-vous ?', 'Ex : Kinshasa, livraison Gombe et Kinshasa'],
+  ['Quels sont vos horaires d\'ouverture ?', 'Ex : Lundi à samedi, 8h à 20h'],
+  ['Comment l\'assistant doit-il parler ? (ton)', 'Ex : Chaleureux et poli, avec quelques emojis 😊']
+];
+function lancerCreation(){ CREA={etape:1,reseau:'whatsapp',mission:'Répondre aux clients',q:{}};
+  document.getElementById('zone-modal').innerHTML = `<div class="modal-fond"><div class="modal" style="max-width:560px"><button class="x" onclick="fermerModal()">✕</button><div id="crea-contenu"></div></div></div>`;
+  afficherEtape(); }
+function barreProg(){ const noms=['Créer','Mission','Tester','Connecter']; return `<div class="prog">${noms.map((n,i)=>`<div class="${CREA.etape===i+1?'actif':CREA.etape>i+1?'fait':''}"><div class="bar"></div>${i+1}. ${n}</div>`).join('')}</div>`; }
+function afficherEtape(){
+  const el = document.getElementById('crea-contenu'); let h = barreProg();
+  if(CREA.etape===1){ h += `<h2>Sur quel réseau ?</h2><p style="color:var(--gris);font-size:14px">Choisissez où vos clients vous écrivent le plus. Vous pourrez ajouter les autres ensuite.</p>
+    <div class="choix">${Object.keys(RESEAUX).map(k=>`<button class="${CREA.reseau===k?'sel':''}" onclick="CREA.reseau='${k}';afficherEtape()"><span class="mini-ic" style="background:${RESEAUX[k].couleur}">${RESEAUX[k].emoji}</span>${RESEAUX[k].nom}</button>`).join('')}</div>
+    <label class="champ">Donnez un nom à votre assistant</label><input class="ipt" id="crea-nom" placeholder="Ex : Assistant Boutique Amina" value="${CREA.q.nom||''}">
+    <div class="nav-bas"><button class="btn btn-principal" onclick="CREA.q.nom=(document.getElementById('crea-nom').value||'Mon assistant');CREA.etape=2;afficherEtape()">Continuer →</button></div>`; }
+  if(CREA.etape===2){ h += `<h2>Quelle est sa mission ? 🎯</h2><p style="color:var(--gris);font-size:14px">Choisissez, puis répondez à quelques questions simples : l'IA écrira ses instructions toute seule.</p>
+    <div class="choix">${MISSIONS.map(m=>`<button class="${CREA.mission===m[1]?'sel':''}" onclick="CREA.mission='${m[1]}';afficherEtape()">${m[0]} <span>${m[1]}<br><span style="color:var(--gris);font-weight:400;font-size:12.5px">${m[2]}</span></span></button>`).join('')}</div>
+    ${QUESTIONS.map((q,i)=>`<label class="champ">${i+1}. ${q[0]}</label><input class="ipt" id="q${i}" placeholder="${q[1]}" value="${CREA.q['q'+i]||''}">`).join('')}
+    <div class="nav-bas"><button class="btn btn-contour" onclick="CREA.etape=1;afficherEtape()">← Retour</button><button class="btn btn-principal" onclick="genererInstructions()">✨ Créer ses instructions</button></div>`; }
+  if(CREA.etape===3){ h += `<h2>Testez votre assistant 🧪</h2><p style="color:var(--gris);font-size:14px">Discutez avec lui comme si vous étiez un client. C'est gratuit et sans limite pendant le test.</p>
+    <div style="background:#f7f7fa;border:1px solid var(--bord);border-radius:12px;padding:12px;font-size:13px;margin:12px 0"><b>📋 Ses instructions (écrites par l'IA) :</b><br><span style="color:var(--gris)">${CREA.instructions||''}</span></div>
+    <div class="chatbox" id="play-chat" style="height:280px"></div>
+    <div class="chat-input"><input id="play-input" placeholder="Ex : Bonjour, vous livrez à Kinshasa ?" onkeydown="if(event.key==='Enter')envoyerPlay()"><button class="btn btn-principal" onclick="envoyerPlay()">Tester</button></div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn btn-contour btn-petit" onclick="suggestionPlay('C\'est combien ?')">💡 « C'est combien ? »</button><button class="btn btn-contour btn-petit" onclick="suggestionPlay('Vous êtes ouverts quand ?')">💡 « Vous êtes ouverts quand ? »</button><button class="btn btn-contour btn-petit" onclick="suggestionPlay('Je veux parler à un humain')">💡 « Je veux un humain »</button></div>
+    <div class="nav-bas"><button class="btn btn-contour" onclick="CREA.etape=2;afficherEtape()">← Modifier</button><button class="btn btn-principal" onclick="CREA.etape=4;afficherEtape()">Il me plaît, on connecte →</button></div>`; }
+  if(CREA.etape===4){ const r=RESEAUX[CREA.reseau]; h += `<h2>Plus qu'un pas ! 🔗</h2><p style="color:var(--gris);font-size:14px">Connectez votre compte ${r.nom} pour que l'assistant commence à répondre pour de vrai.</p>
+    ${CREA.reseau==='whatsapp' ? `<div class="qr">[ QR CODE DE DÉMONSTRATION ]</div><p style="text-align:center;font-size:13.5px">Ouvrez WhatsApp → Appareils connectés → Scanner ce code</p><div class="erreur-box">⚠️ <b>À savoir :</b> la connexion par QR code est pratique pour tester, mais Meta peut la limiter. Pour un usage durable, nous recommanderons la connexion officielle WhatsApp Business à l'Étape 4.</div><button class="btn btn-principal btn-grand" onclick="terminerCreation()">📱 J'ai scanné le code</button>`
+    : `<button class="btn btn-grand" style="background:${CREA.reseau==='facebook'?'var(--fb)':'var(--ig)'};color:#fff" onclick="terminerCreation()">🔵 Connecter avec Facebook</button><p style="text-align:center;font-size:13px;color:var(--gris);margin-top:10px">Connexion officielle et sécurisée par Meta. Vous choisirez votre Page ${CREA.reseau==='instagram'?'et votre compte Instagram':''} à l'écran suivant.</p>`}
+    <div class="nav-bas"><button class="btn btn-contour" onclick="CREA.etape=3;afficherEtape()">← Retour au test</button></div>`; }
+  el.innerHTML = h;
+  if(CREA.etape===3){ const ch=document.getElementById('play-chat'); ch.innerHTML=`<div class="bulle ia">Bonjour et bienvenue 😊 Je suis l'assistant de ${CREA.q.q0||CREA.q.nom||'votre activité'}. Posez-moi une question comme un vrai client !<small>IA · à l'instant</small></div>`; }
+}
+function genererInstructions(){ QUESTIONS.forEach((q,i)=>{ const e=document.getElementById('q'+i); CREA.q['q'+i]=e?e.value:''; });
+  CREA.instructions = `Tu es l'assistant de « ${CREA.q.q0||CREA.q.nom||'notre activité'} ». Mission : ${CREA.mission.toLowerCase()}. Activité : ${CREA.q.q1||'—'}. Zone : ${CREA.q.q2||'—'}. Horaires : ${CREA.q.q3||'—'}. Ton : ${CREA.q.q4||'chaleureux, poli, quelques emojis'}. réponds en moins de 10 secondes, phrases courtes, jamais d'informations inventées : si tu ne sais pas, propose de passer à un humain.`;
+  CREA.etape=3; afficherEtape(); toast('✨ Instructions créées par l\'IA !'); }
+function reponseIA(txt){ const t=txt.toLowerCase(); const act=CREA.q.q0||'chez nous';
+  if(t.includes('humain')||t.includes('personne')||t.includes('patron')) return `Bien sûr, je vous mets en relation avec une personne de l'équipe 🙋 Un membre de ${act} va vous répondre ici même. Merci de patienter un instant !`;
+  if(t.includes('combien')||t.includes('prix')||t.includes('coût')||t.includes('cout')) return `Merci pour votre question ! 😊 Pour vous donner le prix exact, dites-moi quel produit vous intéresse. Je peux aussi vous envoyer notre liste de prix complète.`;
+  if(t.includes('ouvert')||t.includes('horaire')||t.includes('heure')||t.includes('dimanche')) return `Nos horaires : ${CREA.q.q3||'du lundi au samedi, de 8h à 20h'} 🕗 Autre chose ?`;
+  if(t.includes('livr')||t.includes('Kinshasa')||t.includes('ville')) return `Oui, nous livrons dans la zone : ${CREA.q.q2||'Kinshasa et les environs'} 🚚 La livraison prend généralement moins de 24h. Vous voulez passer une commande ?`;
+  if(t.includes('command')||t.includes('acheter')||t.includes('veux')) return `Avec plaisir ! 🛍️ Dites-moi ce que vous voulez commander, et je prépare tout. Vous pouvez aussi me demander nos disponibilités.`;
+  if(t.includes('bonjour')||t.includes('bonsoir')||t.includes('salut')) return `Bonjour et bienvenue ${act ? 'chez '+act : ''} 😊 Comment puis-je vous aider aujourd'hui ?`;
+  return `Merci pour votre message ! 😊 ${CREA.q.q1 ? 'Nous proposons : '+CREA.q.q1+'. ' : ''}Pouvez-vous me préciser ce que vous cherchez ? Je suis là pour vous aider.`; }
+function envoyerPlay(){ const inp=document.getElementById('play-input'); const v=inp.value.trim(); if(!v)return; const ch=document.getElementById('play-chat');
+  ch.innerHTML+=`<div class="bulle client">${v}<small>Vous (client test)</small></div>`; inp.value=''; ch.scrollTop=ch.scrollHeight;
+  const ty=document.createElement('div'); ty.className='typing'; ty.innerHTML='<i></i><i></i><i></i>'; ch.appendChild(ty); ch.scrollTop=ch.scrollHeight;
+  setTimeout(()=>{ ty.remove(); ch.innerHTML+=`<div class="bulle ia">${reponseIA(v)}<small>IA · ${(Math.random()*3+2).toFixed(1)} sec · 0 crédit (test)</small></div>`; ch.scrollTop=ch.scrollHeight; }, 1100); }
+function suggestionPlay(t){ const inp=document.getElementById('play-input'); inp.value=t; envoyerPlay(); }
+function terminerCreation(){ const nom=(CREA.q.nom||'Mon assistant')+' — '+RESEAUX[CREA.reseau].nom;
+  ETAT.assistants.unshift({id:Date.now(), nom, reseau:CREA.reseau, mission:CREA.mission, actif:true, connecte:true, msgs:0});
+  fermerModal(); aller('assistants'); toast('🎉 Félicitations ! Votre assistant est ACTIF. Il répondra à vos clients jour et nuit.'); }
+
+/* ================= PAIEMENT ================= */
+let PAIEMENT=null;
+function ouvrirPaiement(plan, credits, prix){ PAIEMENT={plan, credits, prix, moyen:'Orange Money'};
+  document.getElementById('zone-modal').innerHTML=`<div class="modal-fond" onclick="if(event.target===this)fermerModal()"><div class="modal">
+  <button class="x" onclick="fermerModal()">✕</button><h2>Plan ${plan} · ${prix}/mois</h2>
+  <p style="color:var(--gris);font-size:14px">${credits.toLocaleString('fr-FR')} messages IA inclus. Choisissez comment payer :</p>
+  <div class="moyens">${['🟠 Orange Money','🔴 M-Pesa','🟡 MTN MoMo','🔴 Airtel Money','💳 Carte bancaire'].map((m,i)=>`<button class="${i===0?'sel':''}" onclick="document.querySelectorAll('.moyens button').forEach(b=>b.classList.remove('sel'));this.classList.add('sel');PAIEMENT.moyen='${m.replace(/^[^ ]+ /,'')}'">${m}</button>`).join('')}</div>
+  <label class="champ">Numéro qui va payer</label><input class="ipt" placeholder="Ex : +243 815 000 000">
+  <div style="height:14px"></div><button class="btn btn-principal btn-grand" onclick="validerPaiement()">Payer ${prix}</button>
+  <p style="text-align:center;font-size:12.5px;color:var(--gris);margin-top:10px">🔒 Paiement sécurisé. Vous recevrez une demande de confirmation sur votre téléphone.</p></div></div>`; }
+function validerPaiement(){ const p=PAIEMENT; fermerModal(); toast(`📲 Demande envoyée ! Confirmez avec votre code PIN ${p.moyen}…`);
+  setTimeout(()=>{ ETAT.plan=p.plan; ETAT.creditsMax=p.credits; ETAT.credits=Math.min(ETAT.credits+p.credits, p.credits); ETAT.histo.unshift({date:"À l'instant", quoi:`Plan ${p.plan} payé par ${p.moyen}`, montant:'+'+p.credits.toLocaleString('fr-FR'), type:'achat'}); aller('credits'); toast(`🎉 Paiement réussi ! Plan ${p.plan} actif, ${p.credits.toLocaleString('fr-FR')} crédits ajoutés.`); }, 1800); }
+
+/* Démarrage */
+majCredits();
+</script>
+</body>
+</html>

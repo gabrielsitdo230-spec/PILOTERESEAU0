@@ -1,0 +1,14 @@
+{
+  "name": "pilote-reseau",
+  "version": "1.0.0",
+  "description": "Pilote Réseau — assistant IA WhatsApp, Facebook, Instagram et TikTok (commentaires)",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node test/test-assistant.js && node test/test-meta.js && node test/test-payments-admin.js && node test/test-tiktok.js && node test/test-auth.js && node test/test-admin-prive.js",
+    "check": "node server/check-config.js"
+  }
+}

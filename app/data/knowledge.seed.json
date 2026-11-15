@@ -1,0 +1,34 @@
+[
+  {
+    "id": "kb_seed_prix",
+    "workspaceId": "demo",
+    "type": "text",
+    "title": "Nos prix et produits",
+    "content": "La robe rouge est à 45 $. La robe bleue fleurie est à 38 $. Les chaussures escarpins sont à 30 $. Le sac à main en cuir est à 55 $. Pour les revendeurs : à partir de 10 pièces, réduction de 15% sur les prix. À partir de 20 pièces, réduction de 20% et livraison offerte. Paiement accepté : Orange Money, M-Pesa, espèces à la boutique, et carte bancaire.",
+    "createdAt": "2026-11-10T08:00:00.000Z"
+  },
+  {
+    "id": "kb_seed_livraison",
+    "workspaceId": "demo",
+    "type": "text",
+    "title": "Livraison",
+    "content": "Nous livrons à Kinshasa (Gombe, Kinshasa, Ngaliema, Limete) sous 24h pour 5 $. La livraison est offerte pour toute commande de 60 $ ou plus. Expédition en province (Lubumbashi, Goma, Kolwezi) en 3 à 5 jours, frais selon la ville, via agence de transport. Le client paie à la livraison ou par Mobile Money avant expédition.",
+    "createdAt": "2026-11-10T08:00:00.000Z"
+  },
+  {
+    "id": "kb_seed_horaires",
+    "workspaceId": "demo",
+    "type": "text",
+    "title": "Horaires et adresse",
+    "content": "La boutique Boutique Amina est ouverte du lundi au samedi de 8h à 20h, et le dimanche de 10h à 16h. Adresse : 12, avenue de la Libération, Gombe, Kinshasa. Téléphone de la boutique : +243 815 000 000. Les rendez-vous pour essayage se prennent par WhatsApp.",
+    "createdAt": "2026-11-10T08:00:00.000Z"
+  },
+  {
+    "id": "kb_seed_retours",
+    "workspaceId": "demo",
+    "type": "text",
+    "title": "Échanges et retours",
+    "content": "Échange possible sous 7 jours avec le reçu, article non porté avec étiquette. Si la taille ne convient pas, échange gratuit contre une autre taille disponible. Les remboursements sont étudiés au cas par cas par la responsable de la boutique : pour un remboursement, l'assistant doit passer la conversation à un humain.",
+    "createdAt": "2026-11-10T08:00:00.000Z"
+  }
+]
