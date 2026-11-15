@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pilote Réseau — Votre assistant IA WhatsApp, Facebook & Instagram</title>
+<link rel="icon" type="image/png" href="logo.png">
 <style>
 :root{
   --vert:#00c853; --vert-d:#009624; --violet:#6c3ce9; --noir:#12141a; --gris:#5b6472;
@@ -182,7 +183,7 @@ th{color:var(--gris);font-size:12px}
 <!-- ================= VUE PUBLIQUE ================= -->
 <div id="vue-publique">
   <div class="topbar"><div class="topbar-in">
-    <div class="logo"><span class="ic">🚀</span>Pilote<span>Réseau</span></div>
+    <div class="logo"><img class="ic" src="logo.png" alt="Logo Pilote Réseau" style="object-fit:cover;padding:0">Pilote<span>Réseau</span></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-contour btn-petit" onclick="ouvrirAuth('connexion')">Se connecter</button>
       <button class="btn btn-principal btn-petit" onclick="ouvrirAuth('inscription')">Commencer</button>
@@ -261,7 +262,7 @@ th{color:var(--gris);font-size:12px}
 <!-- ================= VUE APPLICATION ================= -->
 <div id="vue-app" class="app hide">
   <aside class="side">
-    <div class="logo"><span class="ic">🚀</span>Pilote<span>Réseau</span></div>
+    <div class="logo"><img class="ic" src="logo.png" alt="Logo Pilote Réseau" style="object-fit:cover;padding:0">Pilote<span>Réseau</span></div>
     <nav class="nav" id="nav-side"></nav>
     <div class="credits-box"><div style="font-size:12px;font-weight:700">💳 Crédits messages</div><b id="credits-val-side">340</b> <span style="font-size:12px">/ 500</span><div class="barre"><i id="credits-bar-side" style="width:68%"></i></div><button class="btn btn-principal btn-petit" style="width:100%" onclick="aller('credits')">Recharger</button></div>
   </aside>
