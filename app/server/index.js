@@ -31,6 +31,7 @@ const payments = require('./payments');
 const platform = require('./platform');
 const tiktok = require('./tiktok');
 const auth = require('./auth');
+const saspay = require('./saspay');
 
 // Clé super-admin : à définir dans .env (ADMIN_KEY). Valeur de démo locale sinon.
 const ADMIN_KEY = process.env.ADMIN_KEY || 'pilote-admin-demo';
@@ -326,12 +327,12 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/payments/checkout' && req.method === 'POST') {
       const b = await readBody(req);
       const a = requireAuth(req, res); if (!a) return;
-      const r = payments.checkout({ workspaceId: a.workspaceId, planCode: b.planCode, method: b.method || 'orange_money', phone: b.phone || '' });
+      const r = await payments.checkout({ workspaceId: a.workspaceId, planCode: b.planCode, method: b.method || 'orange_money', phone: b.phone || '', customerEmail: a.user.login, customerName: a.user.name });
       if (r.error) return json(res, 400, { error: r.error });
       return json(res, 201, r);
     }
     if (p === '/api/payments/simulate-confirm' && req.method === 'POST') {
-      if (payments.isLive()) return json(res, 403, { error: 'Simulation désactivée en mode paiement réel.' });
+      if (payments.isLive()) return json(res, 403, { error: 'Simulation désactivée en mode paiement réel (' + payments.activeProvider() + ').' });
       const b = await readBody(req);
       const r = payments.confirm(b.providerRef, { status: 'success' });
       if (r.error) return json(res, 404, { error: r.error });
@@ -346,6 +347,29 @@ const server = http.createServer(async (req, res) => {
       const r = payments.confirm(ref, { status: status === 'successful' ? 'success' : status });
       if (r.error) return json(res, 404, { error: r.error });
       return json(res, 200, { received: true, alreadyProcessed: Boolean(r.alreadyProcessed) });
+    }
+    if (p.startsWith('/api/payments/status/') && req.method === 'GET') {
+      const a = requireAuth(req, res); if (!a) return;
+      const ref = decodeURIComponent(p.split('/').pop());
+      try {
+        const r = await payments.checkAndConfirm(ref);
+        if (r.error) return json(res, 404, { error: r.error });
+        return json(res, 200, { ...r, credits: credits.get(a.workspaceId) });
+      } catch (e) { return json(res, 502, { error: 'Vérification du paiement impossible pour le moment : ' + e.message }); }
+    }
+    if (p === '/webhooks/saspay' && req.method === 'POST') {
+      const raw = await new Promise((resolve, reject) => { let d=''; req.on('data', c=>{d+=c; if(d.length>2e6) req.destroy();}); req.on('end',()=>resolve(d)); req.on('error',reject); });
+      if (!saspay.cfg.webhookSecret) return json(res, 503, { error: 'Webhook SasPay non configuré (secret manquant côté serveur).' });
+      if (!saspay.isValidWebhook(raw, req.headers['x-webhook-signature'], req.headers['x-webhook-timestamp'])) {
+        return json(res, 401, { error: 'Signature ou horodatage du webhook SasPay invalide' });
+      }
+      let body = {}; try { body = JSON.parse(raw || '{}'); } catch { return json(res, 400, { error: 'JSON invalide' }); }
+      const event = body.event || req.headers['x-webhook-event'] || '';
+      let confirmed = [];
+      if (event === 'transaction.success' || saspay.isSuccessStatus(body.data?.status)) {
+        confirmed = await payments.confirmPendingSaspay();
+      }
+      return json(res, 200, { received: true, event, confirmed: confirmed.map(c => ({ ref: c.ref, ok: Boolean(c.payment && c.payment.status === 'success') })) });
     }
     if (p === '/api/payments/history' && req.method === 'GET') { const a = requireAuth(req, res); if (!a) return; return json(res, 200, { payments: payments.list(a.workspaceId) }); }
 
@@ -370,7 +394,7 @@ const server = http.createServer(async (req, res) => {
           paiementsReussis: payments.list().filter(x => x.status === 'success').length,
           revenus: payments.revenue(),
         },
-        systeme: { metaLive: meta.isLive(), iaLive: llm.hasRealLLM(), paiementLive: payments.isLive(), chiffrement: isEncryptionReady(), file: incomingQueue.stats },
+        systeme: { metaLive: meta.isLive(), iaLive: llm.hasRealLLM(), paiementLive: payments.isLive(), paiementProvider: payments.activeProvider(), saspayMode: saspay.mode(), chiffrement: isEncryptionReady(), file: incomingQueue.stats },
         plans: plans.list(),
       });
     }

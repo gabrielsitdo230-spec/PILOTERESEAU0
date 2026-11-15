@@ -634,6 +634,25 @@ async function validerPaiement(){ const p=PAIEMENT; fermerModal(); toast(`📲 D
   try{
     const co = await (await fetch('/api/payments/checkout',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({planCode:p.code, method:MOYENS_API[p.moyen]||'orange_money'})})).json();
     if(co.error) throw new Error(co.error);
+    if(co.checkoutUrl){ // SasPay (ou autre checkout hébergé réel)
+      window.open(co.checkoutUrl, '_blank');
+      toast('💳 Page de paiement SasPay ouverte : payez, je vérifie automatiquement…');
+      for(let i=0;i<10;i++){
+        await new Promise(r=>setTimeout(r, 4000));
+        try{
+          const st = await (await fetch('/api/payments/status/' + co.payment.providerRef, { headers: authHeaders() })).json();
+          if(st.payment && st.payment.status==='success'){
+            ETAT.plan=p.plan; ETAT.creditsMax=p.credits; if(st.credits) ETAT.credits=st.credits.balance;
+            ETAT.histo.unshift({date:"À l'instant", quoi:`Plan ${p.plan} payé via SasPay (réf. ${co.payment.providerRef})`, montant:'+'+p.credits.toLocaleString('fr-FR'), type:'achat'});
+            aller('credits'); toast(`🎉 Paiement SasPay confirmé ! Plan ${p.plan} actif, solde : ${ETAT.credits} crédits.`);
+            return;
+          }
+          if(st.payment && st.payment.status==='failed'){ aller('credits'); toast('❌ Le paiement SasPay a échoué ou été annulé. Réessayez.'); return; }
+        }catch(e){ /* on continue de vérifier */ }
+      }
+      aller('credits'); toast('⏳ Paiement en cours de confirmation chez SasPay. Vos crédits arriveront dès validation — rechargez la page dans un instant.');
+      return;
+    }
     const conf = await (await fetch('/api/payments/simulate-confirm',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({providerRef:co.payment.providerRef})})).json();
     if(conf.error) throw new Error(conf.error);
     ETAT.plan=p.plan; ETAT.creditsMax=p.credits; if(conf.credits) ETAT.credits=conf.credits.balance;

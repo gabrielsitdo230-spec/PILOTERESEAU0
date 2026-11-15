@@ -10,6 +10,8 @@ const credits = require('../server/credits');
 
 let n = 0; const ok = (name) => { n++; console.log(`✅ ${name}`); };
 
+(async () => {
+
 // 1. Prix par défaut présents
 const def = plans.get('pro');
 assert(def && def.priceMonthly === 10 && def.creditsIncluded === 3500);
@@ -39,7 +41,7 @@ plans.remove('test-premium');
 ok('Admin : créer / masquer / supprimer un plan');
 
 // 5. Checkout -> paiement pending au NOUVEAU prix
-const co = payments.checkout({ planCode: 'pro', method: 'orange_money', phone: '+243815000000' });
+const co = await payments.checkout({ planCode: 'pro', method: 'orange_money', phone: '+243815000000' });
 assert(!co.error, co.error);
 assert.strictEqual(co.payment.status, 'pending');
 assert.strictEqual(co.payment.amount, 12);
@@ -70,3 +72,4 @@ assert.strictEqual(plans.get('pro').priceMonthly, 10);
 ok('Démo restaurée : Pro = 10 USD, solde = 340 crédits');
 
 console.log(`\n🎉 ${n}/8 tests réussis — Étape 5 + Admin OK`);
+})().catch(e => { console.error('❌ Test en échec :', e.message); process.exit(1); });

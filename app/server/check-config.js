@@ -25,6 +25,9 @@ row('Clé de chiffrement jetons (TOKEN_ENCRYPTION_KEY)', keyOk, keyOk ? 'AES-256
 
 row('Supabase URL', has('SUPABASE_URL'), has('SUPABASE_URL') ? 'Base cloud configurée' : 'Créez le projet puis exécutez supabase/schema.sql', false);
 row('Supabase Service Role', has('SUPABASE_SERVICE_ROLE_KEY'), has('SUPABASE_SERVICE_ROLE_KEY') ? 'Présente (serveur uniquement !)' : 'Dans Supabase : Settings > API', false);
+const sasKey = has('SASPAY_SECRET_KEY') || has('SASPAY_API_KEY');
+row('Paiement SasPay (SASPAY_SECRET_KEY)', sasKey, sasKey ? ('SasPay actif, mode ' + (String(env.SASPAY_SECRET_KEY || env.SASPAY_API_KEY).startsWith('sk_live') ? 'LIVE' : 'TEST')) : 'Optionnel — alternative à Flutterwave (Mobile Money RDC/Afrique)', false);
+row('Secret webhook SasPay', has('SASPAY_WEBHOOK_SECRET'), has('SASPAY_WEBHOOK_SECRET') ? 'Webhooks signés vérifiés' : 'À copier depuis app.saspay.me > Développeur > Webhooks (affiché une seule fois)', false);
 row('Paiement Flutterwave (FLW_SECRET_KEY)', has('FLW_SECRET_KEY') || has('FLUTTERWAVE_SECRET_KEY'), (has('FLW_SECRET_KEY') || has('FLUTTERWAVE_SECRET_KEY')) ? 'Paiements réels actifs' : 'Mode simulation — créez un compte Flutterwave ou CinetPay');
 
 const adminOk = has('ADMIN_KEY') && env.ADMIN_KEY !== 'pilote-admin-demo';

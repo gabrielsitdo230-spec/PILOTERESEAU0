@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const plans = require('./plans');
+const saspay = require('./saspay');
 const credits = require('./credits');
 
 const FILE = path.join(__dirname, '..', 'data', 'payments.json');
@@ -20,30 +21,79 @@ function save(list) { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.
 let payments = load();
 
 const flwKey = () => process.env.FLW_SECRET_KEY || process.env.FLUTTERWAVE_SECRET_KEY || '';
-function isLive() { return Boolean(flwKey()); }
+function activeProvider() { return saspay.isLive() ? 'saspay' : flwKey() ? 'flutterwave' : 'simulation'; }
+function isLive() { return activeProvider() !== 'simulation'; }
 
-function checkout({ workspaceId = 'demo', planCode, method, phone }) {
+async function checkout({ workspaceId = 'demo', planCode, method, phone, customerEmail, customerName }) {
   const plan = plans.get(planCode);
   if (!plan || !plan.active) return { error: 'Ce plan n\'est pas disponible. Choisissez-en un autre.' };
   if (!METHODS.includes(method)) return { error: 'Moyen de paiement inconnu.' };
   const ref = 'pr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const provider = activeProvider();
   const payment = {
-    id: ref, workspaceId, provider: isLive() ? 'flutterwave' : 'simulation',
+    id: ref, workspaceId, provider,
     providerRef: ref, planCode: plan.code,
     amount: plan.priceMonthly, currency: plan.currency,
     method, phone: phone || '', status: 'pending',
     creditsGranted: 0, createdAt: new Date().toISOString(),
   };
-  payments.unshift(payment); save(payments);
   const result = { payment };
-  if (isLive()) {
+  if (provider === 'saspay') {
+    try {
+      const session = await saspay.createCheckoutSession({
+        amount: plan.priceMonthly, currency: plan.currency,
+        description: `Pilote Réseau — Plan ${plan.name} (${plan.creditsIncluded} messages IA)`,
+        customerEmail, customerName, customerPhone: phone,
+      });
+      payment.saspaySessionId = session.id || session.session_id || '';
+      payment.status = 'pending';
+      result.checkoutUrl = session.checkout_url || '';
+      result.saspay = { sessionId: payment.saspaySessionId, status: session.status || 'PENDING', mode: saspay.mode() };
+      result.note = result.checkoutUrl
+        ? 'Redirigez le client vers la page de paiement SasPay (il choisit Orange Money, M-Pesa, carte…). Les crédits arrivent dès confirmation (webhook + vérification).'
+        : 'Session SasPay créée sans URL de paiement : vérifiez la réponse SasPay.';
+    } catch (e) {
+      payment.status = 'failed';
+      payment.error = e.message;
+      payments.unshift(payment); save(payments);
+      return { error: 'Le paiement SasPay n\'a pas pu démarrer : ' + e.message };
+    }
+  } else if (provider === 'flutterwave') {
     result.checkoutUrl = 'https://checkout.flutterwave.com/v3/hosted/pay'; // lien réel créé via API FLW à l'Étape 6 avec la clé
     result.note = 'Redirigez le client vers Flutterwave, puis attendez le webhook.';
   } else {
     result.simulated = true;
     result.note = 'Mode simulation : confirmez via POST /api/payments/simulate-confirm ou le bouton de démo.';
   }
+  payments.unshift(payment); save(payments);
   return result;
+}
+
+/** Interroge SasPay pour un paiement en attente et le confirme si besoin (idempotent via confirm()). */
+async function checkAndConfirm(providerRef) {
+  const payment = payments.find(p => p.providerRef === providerRef);
+  if (!payment) return { error: 'Paiement introuvable' };
+  if (payment.status === 'success') return { payment, alreadyProcessed: true };
+  if (payment.provider !== 'saspay' || !payment.saspaySessionId) return { payment, pending: payment.status === 'pending' };
+  const st = await saspay.getCheckoutStatus(payment.saspaySessionId);
+  const status = st.status || st.state || '';
+  payment.lastStatusCheck = new Date().toISOString();
+  payment.saspayStatus = status;
+  if (saspay.isSuccessStatus(status)) { save(payments); return confirm(providerRef, { status: 'success' }); }
+  if (saspay.isFailedStatus(status)) { payment.status = 'failed'; save(payments); return { payment, failed: true }; }
+  save(payments);
+  return { payment, pending: true, saspayStatus: status };
+}
+
+/** Webhook SasPay : pour chaque paiement SasPay en attente, on revérifie le statut réel puis on confirme. */
+async function confirmPendingSaspay() {
+  const pending = payments.filter(p => p.provider === 'saspay' && p.status === 'pending');
+  const results = [];
+  for (const pmt of pending) {
+    try { results.push({ ref: pmt.providerRef, ...(await checkAndConfirm(pmt.providerRef)) }); }
+    catch (e) { results.push({ ref: pmt.providerRef, error: e.message }); }
+  }
+  return results;
 }
 
 /** Confirmation (webhook réel ou simulation). IDEMPOTENT grâce à providerRef + statut. */
@@ -74,4 +124,4 @@ function revenue() {
     .reduce((acc, p) => { acc[p.currency] = (acc[p.currency] || 0) + Number(p.amount); return acc; }, {});
 }
 
-module.exports = { checkout, confirm, list, isLive, revenue, METHODS };
+module.exports = { checkout, confirm, list, isLive, revenue, METHODS, activeProvider, checkAndConfirm, confirmPendingSaspay };

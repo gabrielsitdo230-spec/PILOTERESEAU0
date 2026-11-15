@@ -249,7 +249,7 @@ function renderReseaux(c){
 
 function renderPaiements(c){
   const rev = Object.entries(CACHE.rev||{}).map(([k,v])=>`${fmt(v)} ${k}`).join(' · ') || '0';
-  c.innerHTML = `<div class="carte"><h2>💰 Paiements</h2><p class="sub">Revenus encaissés : <b>${esc(rev)}</b> · Fournisseur : ${CACHE.ov.systeme.paiementLive ? 'Flutterwave (réel)' : 'Simulation (ajoutez la clé Flutterwave à l\'Étape 6)'}.</p>
+  c.innerHTML = `<div class="carte"><h2>💰 Paiements</h2><p class="sub">Revenus encaissés : <b>${esc(rev)}</b> · Fournisseur : ${CACHE.ov.systeme.paiementLive ? (CACHE.ov.systeme.paiementProvider==='saspay' ? 'SasPay (réel, mode '+(CACHE.ov.systeme.saspayMode||'')+')' : CACHE.ov.systeme.paiementProvider) : 'Simulation (ajoutez une clé SasPay ou Flutterwave)'}.</p>
   ${CACHE.pay.length ? `<div class="scroll"><table><tr><th>Date</th><th>Référence</th><th>Plan</th><th>Montant</th><th>Moyen</th><th>État</th><th>Crédits donnés</th></tr>
   ${CACHE.pay.map(p=>`<tr><td>${new Date(p.createdAt).toLocaleString('fr-FR')}</td><td class="mono">${esc(p.providerRef)}</td><td>${esc(p.planCode)}</td><td><b>${p.amount} ${esc(p.currency)}</b></td><td>${esc(p.method)}</td><td><span class="etat ${p.status==='success'?'on':p.status==='pending'?'warn':'off'}">${p.status==='success'?'✅ Réussi':p.status==='pending'?'⏳ En attente':'❌ Échoué'}</span></td><td>${p.creditsGranted?fmt(p.creditsGranted):'—'}</td></tr>`).join('')}</table></div>`
   : '<p style="color:var(--gris)">Aucun paiement pour le moment. Le premier achat de plan apparaîtra ici.</p>'}</div>`;
@@ -262,7 +262,7 @@ function renderSysteme(c){
   <div class="scroll"><table><tr><th>Service</th><th>État</th><th>Détail</th></tr>
   ${ligne('Connexion Meta (WhatsApp/Facebook/Instagram)', s.metaLive, s.metaLive?'OAuth et envois réels':'Ajoutez META_APP_ID + META_APP_SECRET dans .env')}
   ${ligne('Modèle d\'IA', s.iaLive, s.iaLive?'Vrai modèle branché':'Moteur local intelligent — ajoutez la clé IA dans .env')}
-  ${ligne('Paiement Mobile Money / carte', s.paiementLive, s.paiementLive?'Flutterwave réel':'Simulation — ajoutez la clé Flutterwave/CinetPay')}
+  ${ligne('Paiement Mobile Money / carte', s.paiementLive, s.paiementLive ? ('Fournisseur actif : '+s.paiementProvider+(s.paiementProvider==='saspay'?' (mode '+s.saspayMode+')':'')) : 'Simulation — ajoutez SASPAY_SECRET_KEY (app.saspay.me) ou la clé Flutterwave/CinetPay')}
   ${ligne('Chiffrement des jetons', s.chiffrement, s.chiffrement?'AES-256-GCM actif':'Ajoutez TOKEN_ENCRYPTION_KEY (64 caractères) dans .env')}
   ${ligne('File d\'attente messages', true, `${s.file.processed} traités · ${s.file.retried} réessais · ${s.file.failed} échecs`)}
   </table></div></div>
