@@ -88,7 +88,7 @@ function add({ workspaceId = 'demo', type = 'text', title, content }) {
 }
 function list(workspaceId = 'demo') {
   return items.filter(i => i.workspaceId === workspaceId)
-    .map(({ id, type, title, createdAt }) => ({ id, type, title, createdAt, statut: 'Prêt' }));
+    .map(({ id, type, title, createdAt, content }) => ({ id, type, title, createdAt, caracteres: (content || '').length, statut: 'Prêt' }));
 }
 function remove(id) {
   const before = items.length;

@@ -16,3 +16,5 @@ build/
 # Système
 .DS_Store
 *.log
+sauvegarde-donnees/
+cloudflare/private-data/

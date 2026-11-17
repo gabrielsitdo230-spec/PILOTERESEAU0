@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node test/test-assistant.js && node test/test-meta.js && node test/test-payments-admin.js && node test/test-tiktok.js && node test/test-auth.js && node test/test-admin-prive.js && node test/test-saspay.js && node test/test-connectors.js",
+    "test": "node test/test-assistant.js && node test/test-meta.js && node test/test-payments-admin.js && node test/test-tiktok.js && node test/test-auth.js && node test/test-admin-prive.js && node test/test-saspay.js && node test/test-connectors.js && node test/test-knowledge.js && node test/test-assistants.js",
     "check": "node server/check-config.js"
   }
 }

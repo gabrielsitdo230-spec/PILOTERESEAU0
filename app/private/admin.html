@@ -152,7 +152,8 @@ function renderConnecteurs(c){
     ${Object.entries(p.fields).map(([f, v])=>`
       <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
         <div style="flex:1;min-width:230px"><label>${CHAMPS[code]?.[f]||f}${v.set?` · <span style="color:var(--vert-d)">actuel : ${esc(v.masked)} (${v.source==='env'?'via .env':'connecteur'})</span>`:''}</label>
-        <input class="ipt" type="${v.secret?'password':'text'}" id="conn-${code}-${f}" placeholder="${v.set?'Laisser vide = garder l\'actuel':'Coller ici…'}" autocomplete="off"></div>
+        <input class="ipt" type="text" id="conn-${code}-${f}" placeholder="${v.set?'Laisser vide = garder l\'actuel':'📋 Collez la clé ici…'}" autocomplete="off" style="font-size:15px;padding:13px">
+        ${!v.set?'<div style="font-size:12px;color:var(--gris);margin-top:4px">📱 Téléphone : touchez le champ, restez appuyé, puis « Coller ». 💻 Ordinateur : cliquez le champ, puis Ctrl+V.</div>':''}</div>
         ${v.set?`<button class="btn btn-petit btn-danger" onclick="effacerChamp('${code}','${f}')">Effacer</button>`:''}
       </div>`).join('')}
     </div>

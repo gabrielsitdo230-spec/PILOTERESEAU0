@@ -1,0 +1,62 @@
+{
+  // ============================================================
+  // PILOTE RÉSEAU — Configuration Cloudflare (Étape A : socle)
+  // Déploiement : depuis ce dossier -> npx wrangler deploy
+  // Les SECRETS ne vont JAMAIS ici : utiliser `wrangler secret put`.
+  // ============================================================
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pilote-reseau",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Pages statiques existantes servies telles quelles (design inchangé)
+  "assets": {
+    "directory": "../app/public",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+
+  // Base SQL Cloudflare D1
+  // 1) npx wrangler d1 create pilote-reseau-db
+  // 2) coller ci-dessous le database_id affiché (à la place du texte)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pilote-reseau-db",
+      "database_id": "01d1f39c-85a3-4dd2-ab23-e1202ee9e703",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // KV : petits réglages mis en cache (prix/plans, vérifications temporaires)
+  // 1) npx wrangler kv namespace create PILOTE_KV
+  // 2) coller l'id affiché
+  "kv_namespaces": [
+    {
+      "binding": "PILOTE_KV",
+      "id": "4873f4d01f19495fbff77cb325c7340b"
+    }
+  ],
+
+  // R2 : DÉSACTIVÉ pour l'instant (étape ultérieure, fichiers PDF/images)
+  // "r2_buckets": [{ "binding": "FILES", "bucket_name": "pilote-reseau-files" }],
+
+  // Durable Objects : NON utilisés (aucun besoin réel — voir rapport 14)
+
+  "vars": {
+    "PUBLIC_BASE_URL": "https://pilote-reseau.VOTRE-SOUS-DOMAINE.workers.dev",
+    "SASPAY_COUNTRY": "CD",
+    "LLM_BASE_URL": "https://api.openai.com/v1",
+    "LLM_MODEL": "gpt-4o-mini"
+  },
+
+  "env": {
+    "dev": {
+      "vars": { "PUBLIC_BASE_URL": "http://localhost:8787" }
+    },
+    "production": {
+      "vars": { "PUBLIC_BASE_URL": "https://VOTRE-DOMAINE" }
+    }
+  }
+}

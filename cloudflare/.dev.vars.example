@@ -1,0 +1,14 @@
+# Développement LOCAL uniquement — copier en ".dev.vars" (jamais commité)
+# En production, utiliser : npx wrangler secret put NOM
+ADMIN_KEY=
+TOKEN_ENCRYPTION_KEY=
+LLM_API_KEY=
+[SECURITY_DATA]
+META_APP_SECRET=
+[SECURITY_DATA]
+WHATSAPP_TOKEN=
+[SECURITY_DATA]
+TIKTOK_CLIENT_SECRET=
+[SECURITY_DATA]
+SASPAY_SECRET_KEY=
+[SECURITY_DATA]

@@ -33,6 +33,8 @@ const tiktok = require('./tiktok');
 const auth = require('./auth');
 const saspay = require('./saspay');
 const connectors = require('./connectors');
+const { extractPdfText } = require('./pdf');
+const assistants = require('./assistants');
 
 // Clé super-admin : à définir dans .env (ADMIN_KEY). Valeur de démo locale sinon.
 const ADMIN_KEY = process.env.ADMIN_KEY || 'pilote-admin-demo';
@@ -138,10 +140,10 @@ function json(res, status, obj) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(body);
 }
-function readBody(req) {
+function readBody(req, maxLen = 1e6) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', c => { data += c; if (data.length > 1e6) req.destroy(); });
+    req.on('data', c => { data += c; if (data.length > maxLen) req.destroy(); });
     req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch { reject(new Error('JSON invalide')); } });
     req.on('error', reject);
   });
@@ -236,12 +238,65 @@ const server = http.createServer(async (req, res) => {
       const item = knowledge.add({ workspaceId: a.workspaceId, type: b.type || 'text', title: b.title, content: b.content });
       return json(res, 201, { item: { id: item.id, type: item.type, title: item.title, statut: 'Prêt' } });
     }
+    if (p === '/api/knowledge/pdf' && req.method === 'POST') {
+      const a = requireAuth(req, res); if (!a) return;
+      const b = await readBody(req, 9e6);
+      if (!b.base64) return json(res, 400, { error: 'Aucun fichier reçu. Touchez « Choisir un PDF » puis sélectionnez votre document.' });
+      let buffer;
+      try { buffer = Buffer.from(String(b.base64).replace(/^data:[^,]*,/, ''), 'base64'); }
+      catch (e) { return json(res, 400, { error: 'Fichier illisible. Réessayez avec un autre PDF.' }); }
+      if (buffer.length > 6 * 1024 * 1024) return json(res, 400, { error: 'Ce PDF est trop lourd (maximum 6 Mo). Solution : compressez-le ou copiez-collez son texte dans la zone « Copier-coller ».' });
+      let text;
+      try { text = extractPdfText(buffer); }
+      catch (e) { return json(res, 400, { error: 'Ce fichier n\'est pas un PDF lisible. Solution : choisissez un vrai fichier .pdf, ou copiez-collez son texte dans la zone « Copier-coller ».' }); }
+      if (!text || text.length < 10) return json(res, 400, { error: 'Je n\'ai trouvé aucun texte dans ce PDF (c\'est peut-être un document scanné en image). Solution : copiez-collez le texte dans la zone « Copier-coller un texte » ci-dessous.' });
+      const item = knowledge.add({ workspaceId: a.workspaceId, type: 'PDF', title: (b.title || b.fileName || 'Document PDF').slice(0, 120), content: text });
+      return json(res, 201, { item: { id: item.id, type: item.type, title: item.title, caracteres: text.length, statut: 'Prêt' }, message: 'PDF lu : ' + text.length + ' caractères appris par votre assistant.' });
+    }
     if (p.startsWith('/api/knowledge/') && req.method === 'DELETE') {
+      const a = requireAuth(req, res); if (!a) return;
       const id = p.split('/').pop();
+      const own = knowledge.list(a.workspaceId).some(k => k.id === id);
+      if (!own) return json(res, 404, { error: 'Information introuvable dans votre espace.' });
       return json(res, 200, { removed: knowledge.remove(id) });
     }
 
     if (p === '/api/credits' && req.method === 'GET') { const a = requireAuth(req, res); if (!a) return; return json(res, 200, credits.get(a.workspaceId)); }
+
+    // ---------- Assistants du client (enregistrés, par entreprise) ----------
+    if (p === '/api/assistants' && req.method === 'GET') {
+      const a = requireAuth(req, res); if (!a) return;
+      const linked = store.listAccounts(a.workspaceId);
+      const list = assistants.list(a.workspaceId).map(x => ({ ...x, connected: linked.some(l => l.channel === x.channel && l.status === 'connected') }));
+      return json(res, 200, { assistants: list });
+    }
+    if (p === '/api/assistants' && req.method === 'POST') {
+      const a = requireAuth(req, res); if (!a) return;
+      const b = await readBody(req);
+      if (!b.name || !b.channel) return json(res, 400, { error: 'Il manque le nom ou le réseau de l\'assistant.' });
+      try {
+        const created = assistants.create({ workspaceId: a.workspaceId, name: b.name, channel: b.channel, mission: b.mission, businessName: b.businessName, instructions: b.instructions });
+        const linked = store.listAccounts(a.workspaceId);
+        return json(res, 201, { assistant: { ...created, connected: linked.some(l => l.channel === created.channel && l.status === 'connected') } });
+      } catch (e) { return json(res, 400, { error: e.message }); }
+    }
+    if (p.startsWith('/api/assistants/') && (req.method === 'PATCH' || req.method === 'DELETE')) {
+      const a = requireAuth(req, res); if (!a) return;
+      const id = p.split('/').pop();
+      if (req.method === 'DELETE') return json(res, 200, { removed: assistants.remove(a.workspaceId, id) });
+      const b = await readBody(req);
+      const updated = assistants.update(a.workspaceId, id, b);
+      if (!updated) return json(res, 404, { error: 'Assistant introuvable dans votre espace.' });
+      return json(res, 200, { assistant: updated });
+    }
+
+    // ---------- Boîte de réception réelle (messages reçus via les webhooks) ----------
+    if (p === '/api/inbox' && req.method === 'GET') {
+      const a = requireAuth(req, res); if (!a) return;
+      const msgs = store.listMessages(100).filter(m => m.workspaceId === a.workspaceId);
+      const linked = store.listAccounts(a.workspaceId).filter(l => l.status === 'connected');
+      return json(res, 200, { messages: msgs, connectedChannels: linked.map(l => l.channel) });
+    }
 
 
 
@@ -288,7 +343,7 @@ const server = http.createServer(async (req, res) => {
       const b = await readBody(req);
       const r = auth.register({ name: b.name, login: b.login, motdepasse: b["pass" + "word"] });
       if (r.error) return json(res, 400, { error: r.error });
-      credits.grant(r.user.workspaceId, 100, 'bonus_bienvenue'); // 100 crédits offerts pour démarrer
+      credits.grant(r.user.workspaceId, 10, 'bonus_bienvenue'); // messages offerts pour commencer gratuitement (nombre non affiché côté client)
       credits.setPlan(r.user.workspaceId, 'starter', 500);
       return json(res, 201, { user: r.user, token: r.token, credits: credits.get(r.user.workspaceId) });
     }
