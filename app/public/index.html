@@ -426,13 +426,15 @@ const PAGES = {
   parametres:{titre:'Paramètres', aide:'Votre compte et vos préférences.', icone:'⚙️', label:'Réglages'},
 };
 let pageActuelle = 'dashboard';
+const EMAIL_PROPRIETAIRE = 'gabrielsitdo230@gmail.com';
+function estProprietaire(){ return ((SESSION.user || {}).login || '').toLowerCase() === EMAIL_PROPRIETAIRE; }
 
 function toast(msg){ const z=document.getElementById('zone-toast'); z.innerHTML=`<div class="toast">${msg}</div>`; setTimeout(()=>z.innerHTML='',3400); }
 function majCredits(){ ['credits-val-side'].forEach(id=>{const e=document.getElementById(id); if(e) e.textContent=ETAT.credits;});
   const b=document.getElementById('credits-bar-side'); if(b) b.style.width=Math.max(0,ETAT.credits/ETAT.creditsMax*100)+'%';
   const p=document.getElementById('credits-pill'); if(p) p.textContent=`💳 ${ETAT.credits} crédits`; }
 
-function navHTML(){ return Object.keys(PAGES).map(k=>`<a href="#" data-page="${k}" class="${pageActuelle===k?'actif':''}" onclick="aller('${k}');return false"><span>${PAGES[k].icone}</span>${PAGES[k].label}</a>`).join(''); }
+function navHTML(){ return Object.keys(PAGES).map(k=>`<a href="#" data-page="${k}" class="${pageActuelle===k?'actif':''}" onclick="aller('${k}');return false"><span>${PAGES[k].icone}</span>${PAGES[k].label}</a>`).join('') + (estProprietaire() ? `<a href="/admin" style="background:linear-gradient(135deg,#5314d1,#00c853);color:#fff;font-weight:800"><span>🔐</span>Administration</a>` : ''); }
 function aller(page){ pageActuelle=page; document.getElementById('nav-side').innerHTML=navHTML();
   document.getElementById('nav-bas').innerHTML=Object.keys(PAGES).slice(0,5).map(k=>`<a href="#" class="${pageActuelle===k?'actif':''}" onclick="aller('${k}');return false"><span>${PAGES[k].icone}</span>${PAGES[k].label}</a>`).join('') + `<a href="#" class="${pageActuelle==='credits'?'actif':''}" onclick="aller('credits');return false"><span>💳</span>Crédits</a>`;
   document.getElementById('titre-page').textContent=PAGES[page].titre; document.getElementById('aide-page').textContent=PAGES[page].aide;
@@ -592,6 +594,7 @@ parametres(){
     <p style="color:var(--gris);font-size:14px;margin:0">${kbEsc(u.login || '')}</p>
     <p style="color:var(--gris);font-size:14px">💳 Plan ${kbEsc(ETAT.plan)} · ${ETAT.credits} crédits restants</p>
     <div style="display:grid;gap:9px;margin-top:12px">
+      ${estProprietaire() ? `<a href="/admin" class="btn" style="background:linear-gradient(135deg,#5314d1,#00c853);color:#fff;font-weight:800;text-align:center;text-decoration:none">🔐 Administration de la plateforme</a><p style="color:var(--gris);font-size:12.5px;margin:0">Réservé au propriétaire : clés Meta, TikTok, IA et SasPay.</p>` : ''}
       <button class="btn btn-contour" onclick="aller('credits')">💳 Recharger mes crédits</button>
       <button class="btn btn-contour" onclick="if(confirm('Voulez-vous vraiment vous déconnecter ?')) deconnexion()">Se déconnecter</button>
     </div></div>
