@@ -20,8 +20,8 @@ export async function createUser(DB, { name, login, salt, hash }) {
   await DB.batch([
     DB.prepare('INSERT INTO profiles(id, full_name, login, auth_salt, auth_hash) VALUES (?,?,?,?,?)').bind(userId, name, login, salt, hash),
     DB.prepare('INSERT INTO workspaces(id, owner_id, name) VALUES (?,?,?)').bind(wsId, userId, name),
-    DB.prepare("INSERT INTO credit_accounts(workspace_id, balance, plan) VALUES (?, 10, 'starter')").bind(wsId), // commencer gratuitement (nombre non affiché côté client)
-    DB.prepare("INSERT INTO credit_transactions(id, workspace_id, amount, type) VALUES (?,?,10,'bonus_bienvenue')").bind(id('ctx_'), wsId),
+    DB.prepare('INSERT INTO credit_accounts(workspace_id, balance, plan) VALUES (?, ?, ?)').bind(wsId, 10, 'starter'), // commencer gratuitement (nombre non affiché côté client)
+    DB.prepare('INSERT INTO credit_transactions(id, workspace_id, amount, type) VALUES (?, ?, ?, ?)').bind(id('ctx_'), wsId, 10, 'bonus_bienvenue'),
   ]);
   return { userId, workspaceId: wsId };
 }

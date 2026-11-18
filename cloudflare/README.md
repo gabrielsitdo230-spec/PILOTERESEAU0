@@ -45,8 +45,9 @@ La liaison se fait par l'écran d'autorisation Cloudflare (aucun mot de passe pa
 
 ## État des étapes
 - [x] **A. Socle** : wrangler.jsonc, D1 + migrations, KV, Worker de santé
-- [ ] B. Couche données D1 + migration des JSON (sauvegarde d'abord)
-- [ ] C. Routes API dans le Worker (mêmes adresses que le serveur Node)
+- [x] B. Couche données D1 + migration des JSON (sauvegarde d'abord)
+- [x] C. Routes API dans le Worker (mêmes adresses que le serveur Node) — 19/19 tests locaux
+  - Reste à activer avec les vrais identifiants (étape E) : envoi automatique des réponses via l'API Meta/TikTok (réception + stockage des webhooks déjà faits), file Queues, panneau Admin complet (l'état des connecteurs depuis les Secrets est fait)
 - [ ] D. Frontend servi par le Worker (déjà configuré en assets)
 - [ ] E. Tests complets (voir cahier des charges §11)
 - [ ] F. Déploiement continu + production

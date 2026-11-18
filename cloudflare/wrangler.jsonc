@@ -5,7 +5,7 @@
   // Les SECRETS ne vont JAMAIS ici : utiliser `wrangler secret put`.
   // ============================================================
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pilote-reseau",
+  "name": "pilotereseau0",
   "main": "src/index.js",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -45,7 +45,7 @@
   // Durable Objects : NON utilisés (aucun besoin réel — voir rapport 14)
 
   "vars": {
-    "PUBLIC_BASE_URL": "https://pilote-reseau.VOTRE-SOUS-DOMAINE.workers.dev",
+    "PUBLIC_BASE_URL": "https://pilotereseau0.gabrielsitdo230.workers.dev",
     "SASPAY_COUNTRY": "CD",
     "LLM_BASE_URL": "https://api.openai.com/v1",
     "LLM_MODEL": "gpt-4o-mini"
