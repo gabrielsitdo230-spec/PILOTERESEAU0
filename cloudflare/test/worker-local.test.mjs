@@ -56,6 +56,18 @@ class FakeDB {
     if (s.includes('DELETE FROM knowledge_sources')) { const i = this.t.knowledge_sources.findIndex(r => r.id === b[0] && r.workspace_id === b[1]); if (i >= 0) { this.t.knowledge_sources.splice(i, 1); return { meta: { changes: 1 } }; } return { meta: { changes: 0 } }; }
     if (s.includes('FROM connected_accounts')) return this.t.connected_accounts.filter(r => r.workspace_id === b[0]);
     if (s.includes('FROM messages m JOIN')) return [];
+    if (s.includes('SELECT COUNT(*) AS n FROM profiles')) return { n: this.t.profiles.length };
+    if (s.includes('FROM assistants') && s.includes('COUNT(*)') && !s.includes('GROUP BY')) { const a = this.t.assistants; return { n: a.length, actifs: a.filter(x => x.is_active).length }; }
+    if (s.includes("FROM messages WHERE sender = 'ai'")) return { n: 0, credits: 0 };
+    if (s.includes('FROM assistants GROUP BY channel')) { const g = {}; for (const a of this.t.assistants) { g[a.channel] = g[a.channel] || { channel: a.channel, n: 0, actifs: 0 }; g[a.channel].n++; if (a.is_active) g[a.channel].actifs++; } return Object.values(g); }
+    if (s.includes('FROM connected_accounts') && s.includes('GROUP BY')) return [];
+    if (s.includes('SUM(balance)')) return { total: this.t.credit_accounts.reduce((t, a) => t + (a.balance || 0), 0) };
+    if (s.includes('accordes')) { let ac = 0, co = 0; for (const t of this.t.credit_transactions) { if (t.amount > 0) ac += t.amount; else co += -t.amount; } return { accordes: ac, consommes: co }; }
+    if (s.includes('FROM payments GROUP BY status')) { const g = {}; for (const p of this.t.payments) { g[p.status] = g[p.status] || { status: p.status, n: 0, usd: 0, credits: 0 }; g[p.status].n++; g[p.status].usd += p.amount_usd || 0; g[p.status].credits += p.credits_granted || 0; } return Object.values(g); }
+    if (s.includes('FROM credit_accounts GROUP BY plan')) { const g = {}; for (const a of this.t.credit_accounts) { g[a.plan] = (g[a.plan] || 0) + 1; } return Object.entries(g).map(([plan, n]) => ({ plan, n })); }
+    if (s.includes('FROM payments ORDER BY')) return this.t.payments.slice(-10).reverse();
+    if (s.includes('FROM profiles ORDER BY')) return this.t.profiles.slice(-10).reverse();
+    if (s.includes('FROM assistants ORDER BY')) return this.t.assistants.slice(-10).reverse();
     if (mode === 'all') return [];
     if (mode === 'first') return null;
     return { meta: { changes: 1 } };
@@ -141,3 +153,14 @@ const storedRaw = kvStore.get('conn:meta') || '';
 ok('KV : les secrets sont chiffrés au repos (illisibles)', storedRaw.length > 10 && !storedRaw.includes('value999'));
 
 console.log(`\n🎉 Étape C Worker : ${n}/${n} tests réussis`);
+
+// --- Tableau de bord Admin ---
+const statsNo = await worker.fetch(new Request('http://local/api/admin/stats'), env);
+ok('Stats sans session Admin : 401', statsNo.status === 401);
+const statsRes = await worker.fetch(new Request('http://local/api/admin/stats', { headers: { Cookie: cookie.split(';')[0] } }), env);
+const statsData = await statsRes.json();
+ok('Tableau de bord : utilisateurs comptés', statsRes.status === 200 && statsData.stats.users >= 2);
+ok('Tableau de bord : assistants comptés', statsData.stats.assistants >= 1);
+ok('Tableau de bord : détail par réseau (WhatsApp)', (statsData.stats.assistantsByChannel || []).some(x => x.channel === 'whatsapp' && x.n >= 1));
+ok('Tableau de bord : crédits en circulation suivis', typeof statsData.stats.credits.enCirculation === 'number');
+ok('Tableau de bord : paiements par statut présents', Array.isArray(statsData.stats.paymentsByStatus));

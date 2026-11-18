@@ -121,6 +121,30 @@ export async function listRecentMessages(DB, ws, limit = 100) {
     WHERE c.workspace_id = ? ORDER BY m.created_at DESC LIMIT ?`).bind(ws, limit).all();
   return r.results || [];
 }
+
+// ---------- Administration : tableau de bord (toute la plateforme) ----------
+export async function adminStats(DB) {
+  const one = async (sql) => (await DB.prepare(sql).first()) || {};
+  const rows = async (sql) => (await DB.prepare(sql).all()).results || [];
+  const [users, assistants, messages] = [await one('SELECT COUNT(*) AS n FROM profiles'),
+    await one('SELECT COUNT(*) AS n, COALESCE(SUM(is_active),0) AS actifs FROM assistants'),
+    await one("SELECT COUNT(*) AS n, COALESCE(SUM(credits_used),0) AS credits FROM messages WHERE sender = 'ai'")];
+  const assistantsByChannel = await rows('SELECT channel, COUNT(*) AS n, COALESCE(SUM(is_active),0) AS actifs FROM assistants GROUP BY channel');
+  const accountsByChannel = await rows("SELECT channel, COUNT(*) AS n FROM connected_accounts WHERE status = 'connected' GROUP BY channel");
+  const creditsRow = await one('SELECT COALESCE(SUM(balance),0) AS total FROM credit_accounts');
+  const txRow = await one('SELECT COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END),0) AS accordes, COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END),0) AS consommes FROM credit_transactions');
+  const paymentsByStatus = await rows("SELECT status, COUNT(*) AS n, COALESCE(SUM(amount_usd),0) AS usd, COALESCE(SUM(credits_granted),0) AS credits FROM payments GROUP BY status");
+  const usersByPlan = await rows('SELECT plan, COUNT(*) AS n FROM credit_accounts GROUP BY plan');
+  const recentPayments = await rows('SELECT id, provider, amount, currency, amount_usd, method, country, status, credits_granted, created_at FROM payments ORDER BY created_at DESC LIMIT 10');
+  const recentUsers = await rows('SELECT full_name, login, created_at FROM profiles ORDER BY created_at DESC LIMIT 10');
+  const recentAssistants = await rows('SELECT name, channel, is_active, created_at FROM assistants ORDER BY created_at DESC LIMIT 10');
+  return { users: users.n || 0, assistants: assistants.n || 0, assistantsActifs: assistants.actifs || 0,
+    messagesIA: messages.n || 0, creditsConsommesParIA: messages.credits || 0,
+    assistantsByChannel, accountsByChannel,
+    credits: { enCirculation: creditsRow.total || 0, accordes: txRow.accordes || 0, consommes: txRow.consommes || 0 },
+    paymentsByStatus, usersByPlan, recentPayments, recentUsers, recentAssistants };
+}
+
 export async function logOperation(DB, ws, actor, action, detail) {
   await DB.prepare('INSERT INTO operation_log(id, workspace_id, actor, action, detail) VALUES (?,?,?,?,?)')
     .bind(id('log_'), ws, actor, action, detail).run();

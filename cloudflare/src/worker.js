@@ -113,7 +113,7 @@ async function handleAdminPage(req, env, url) {
 }
 const ADMIN_PANEL_HTML = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin — Pilote Réseau</title><link rel="icon" type="image/png" href="/logo.png"><style>body{font-family:system-ui,Arial,sans-serif;background:#f8f9ff;color:#131c28;margin:0}.top{background:#fff;border-bottom:1px solid #e2dcf5;padding:14px 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.wrap{max-width:880px;margin:auto;padding:18px}.carte{background:#fff;border:1px solid #e2dcf5;border-radius:16px;padding:18px;margin-bottom:16px}label{font-size:13px;font-weight:700;display:block;margin-top:10px}.ipt{width:100%;padding:12px;border:1.5px solid #d8d2f0;border-radius:10px;font-size:14.5px;box-sizing:border-box}button{padding:10px 18px;border-radius:999px;border:none;font-weight:700;cursor:pointer}.bp{background:#5314d1;color:#fff}.bc{background:#fff;border:1.5px solid #d8d2f0}.bd{background:#ffe9ec;color:#b00020}.etat{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px}.on{background:#dcf8e3;color:#00732c}.off{background:#fde8e8;color:#b00020}.note{font-size:12.5px;color:#6b6880}.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#131c28;color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;display:none;max-width:92vw}</style></head><body>
 <div class="top"><img src="/logo.png" style="width:36px;height:36px;border-radius:9px;object-fit:cover"><b style="flex:1">Administration Pilote Réseau</b><a href="/" style="font-size:13px">Voir le site</a> <a href="/admin/logout" style="font-size:13px;color:#b00020;font-weight:700">Se déconnecter</a></div>
-<div class="wrap"><h1 style="font-size:22px">🔌 Connecteurs API</h1><p class="note">Collez vos clés, enregistrez : elles sont gardées <b>chiffrées, côté serveur</b>, et ne s'affichent jamais en entier. Laissez un champ vide pour garder la valeur actuelle.</p>
+<div class="wrap"><h1 style="font-size:22px">📊 Tableau de bord</h1><div id="stats">⏳ Chargement des chiffres…</div><h1 style="font-size:22px;margin-top:26px">🔌 Connecteurs API</h1><p class="note">Collez vos clés, enregistrez : elles sont gardées <b>chiffrées, côté serveur</b>, et ne s'affichent jamais en entier. Laissez un champ vide pour garder la valeur actuelle.</p>
 <p class="note">📋 Adresses à déclarer chez les fournisseurs :<br>Webhook Meta : <b id="cb-meta"></b><br>Retour connexion Meta : <b id="cb-metaoauth"></b><br>Webhook TikTok : <b id="cb-tiktok"></b><br>Webhook SasPay : <b id="cb-saspay"></b></p>
 <div id="cartes">⏳ Chargement…</div></div><div class="toast" id="toast"></div>
 <script>
@@ -128,7 +128,20 @@ async function charger(){ try{ const d=await api('/api/admin/connectors'); $('cb
 async function sauver(code){ const champs={}; document.querySelectorAll('[id^="c-'+code+'-"]').forEach(i=>{ if(i.value.trim()) champs[i.id.slice(code.length+3)]=i.value.trim(); }); if(!Object.keys(champs).length){ toast("Collez au moins une clé avant d'enregistrer."); return; } try{ await api('/api/admin/connectors/'+code+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:champs})}); toast('✅ Enregistré et activé immédiatement'); charger(); }catch(e){ toast('⚠️ '+e.message); } }
 async function effacer(code,f){ if(!confirm('Effacer cette valeur ?'))return; try{ await api('/api/admin/connectors/'+code+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:{[f]:'__clear__'}})}); toast('🗑 Effacé'); charger(); }catch(e){ toast('⚠️ '+e.message); } }
 async function tester(code){ const z=$('t-'+code); z.textContent='⏳ Test en cours…'; try{ const d=await api('/api/admin/connectors/'+code+'/test',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); z.textContent=(d.ok?'✅ ':'⚠️ ')+d.message; }catch(e){ z.textContent='⚠️ '+e.message; } }
-charger();
+async function chargerStats(){ const z=$('stats'); try{ const d=await api('/api/admin/stats'); const s=d.stats||{};
+ const pay=(s.paymentsByStatus||[]); const paye=pay.find(x=>x.status==='paid')||{}; const attente=pay.find(x=>x.status==='pending')||{};
+ const canaux={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok'};
+ const parReseau=['whatsapp','facebook','instagram','tiktok'].map(c=>{ const a=(s.assistantsByChannel||[]).find(x=>x.channel===c)||{}; const co=(s.accountsByChannel||[]).find(x=>x.channel===c)||{}; return '<tr><td><b>'+canaux[c]+'</b></td><td>'+(a.n||0)+' assistant(s) ('+(a.actifs||0)+' actif)</td><td>'+(co.n||0)+' compte(s) connecté(s)</td></tr>'; }).join('');
+ const grille=[['👥 Utilisateurs inscrits',s.users||0],['🤖 Assistants créés',(s.assistants||0)+' ('+( s.assistantsActifs||0)+' actifs)'],['💬 Messages répondus par l\'IA',s.messagesIA||0],['🪙 Crédits en circulation',(s.credits||{}).enCirculation||0],['✅ Crédits accordés',(s.credits||{}).accordes||0],['🔥 Crédits consommés',(s.credits||{}).consommes||0],['💰 Paiements réussis',(paye.n||0)+' · '+((paye.usd||0))+' $'],['⏳ Paiements en attente',attente.n||0]];
+ const liste=(titre,items,fmt)=> items&&items.length? '<div class="carte"><h3 style="margin-top:0">'+titre+'</h3>'+items.map(fmt).join('')+'</div>':'';
+ z.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">'+grille.map(([l,v])=>'<div class="carte" style="margin:0;text-align:center"><div style="font-size:26px;font-weight:900;color:#5314d1">'+esc(String(v))+'</div><div class="note">'+esc(l)+'</div></div>').join('')+'</div>'
+ +'<div class="carte"><h3 style="margin-top:0">📡 Par réseau</h3><table>'+parReseau+'</table></div>'
+ +((s.usersByPlan||[]).length? '<div class="carte"><h3 style="margin-top:0">💳 Utilisateurs par plan</h3>'+s.usersByPlan.map(x=>'<p style="margin:4px 0">'+esc(x.plan)+' : <b>'+x.n+'</b></p>').join('')+'</div>':'')
+ + liste('🧾 Derniers paiements', s.recentPayments, x=>'<p style="margin:4px 0;font-size:13.5px">'+esc(x.created_at||'')+' · <b>'+esc(String(x.amount||''))+' '+esc(x.currency||'')+'</b> ('+esc(x.provider||'')+') · '+esc(x.status||'')+' · '+ (x.credits_granted||0) +' crédit(s)</p>')
+ + liste('👥 Derniers utilisateurs', s.recentUsers, x=>'<p style="margin:4px 0;font-size:13.5px">'+esc(x.created_at||'')+' · <b>'+esc(x.full_name||'')+'</b> · '+esc(x.login||'')+'</p>')
+ + liste('🤖 Derniers assistants', s.recentAssistants, x=>'<p style="margin:4px 0;font-size:13.5px">'+esc(x.created_at||'')+' · <b>'+esc(x.name||'')+'</b> · '+esc(x.channel||'')+' · '+(x.is_active?'actif':'en pause')+'</p>');
+ }catch(e){ z.innerHTML='⚠️ '+esc(e.message); } }
+chargerStats(); charger();
 </script></body></html>`;
 
 
@@ -370,6 +383,10 @@ async function handleApi(req, env, url) {
       metaWebhook: origin + '/webhooks/meta', metaOAuth: origin + '/auth/meta/callback',
       tiktokWebhook: origin + '/webhooks/tiktok', tiktokOAuth: origin + '/auth/tiktok/callback',
       saspayWebhook: origin + '/webhooks/saspay' } });
+  }
+  if (p === '/api/admin/stats' && req.method === 'GET') {
+    if (!(await isAdminReq(req, env))) return json({ error: 'Accès admin refusé. Connectez-vous à la page Admin.' }, 401);
+    return json({ stats: await db.adminStats(env.DB) });
   }
   if (p.startsWith('/api/admin/connectors/') && req.method === 'POST') {
     if (!(await isAdminReq(req, env))) return json({ error: 'Accès admin refusé. Connectez-vous à la page Admin.' }, 401);
