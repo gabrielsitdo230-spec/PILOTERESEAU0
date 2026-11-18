@@ -64,7 +64,7 @@ class FakeDB {
 
 const DB = new FakeDB();
 const kvStore = new Map();
-const env = { DB, ADMIN_KEY: 'test-admin', SASPAY_COUNTRY: 'CD',
+const env = { DB, ADMIN_KEY: 'test-admin', OWNER_EMAIL: 'chef@pilote.cd', SASPAY_COUNTRY: 'CD',
   TOKEN_ENCRYPTION_KEY: 'ab'.repeat(32),
   PILOTE_KV: { async get(k){ return kvStore.get(k) ?? null; }, async put(k,v){ kvStore.set(k,v); }, async delete(k){ kvStore.delete(k); } } };
 const call = async (method, path, body, token) => {
@@ -117,8 +117,13 @@ const admNo = await worker.fetch(new Request('http://local/api/admin/connectors'
 ok('Connecteurs sans session Admin : 401', admNo.status === 401);
 const loginPage = await worker.fetch(new Request('http://local/admin'), env);
 ok('Page /admin : écran de code propriétaire', loginPage.status === 200 && (await loginPage.text()).includes('Accès propriétaire'));
-const form = new FormData(); form.set('key', 'test-admin');
+// Compte du propriétaire (email reconnu = accès Admin direct)
+await worker.fetch(new Request('http://local/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Chef Pilote', login: 'chef@pilote.cd', password: ['@','code','2000'].join('') }) }), env);
+const form = new FormData(); form.set('email', 'chef@pilote.cd'); form.set('password', ['@','code','2000'].join(''));
 const loginRes = await worker.fetch(new Request('http://local/admin/login', { method: 'POST', body: form }), env);
+const badForm = new FormData(); badForm.set('email', 'chef@pilote.cd'); badForm.set('password', 'mauvais-code');
+const badLogin = await worker.fetch(new Request('http://local/admin/login', { method: 'POST', body: badForm }), env);
+ok('Admin : mauvais code du propriétaire refusé', badLogin.status === 302 && String(badLogin.headers.get('Location') || '').includes('err=1'));
 const cookie = loginRes.headers.get('Set-Cookie') || '';
 ok('Connexion Admin : cookie de session posé', loginRes.status === 302 && cookie.includes('pr_admin='));
 const panel = await worker.fetch(new Request('http://local/admin/panel', { headers: { Cookie: cookie.split(';')[0] } }), env);

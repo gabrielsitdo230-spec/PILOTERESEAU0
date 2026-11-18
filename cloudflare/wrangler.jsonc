@@ -46,6 +46,7 @@
 
   "vars": {
     "PUBLIC_BASE_URL": "https://pilotereseau0.gabrielsitdo230.workers.dev",
+    "OWNER_EMAIL": "gabrielsitdo230@gmail.com",
     "SASPAY_COUNTRY": "CD",
     "LLM_BASE_URL": "https://api.openai.com/v1",
     "LLM_MODEL": "gpt-4o-mini"

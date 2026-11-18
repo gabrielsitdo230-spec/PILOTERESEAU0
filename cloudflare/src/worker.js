@@ -60,32 +60,46 @@ async function newSession(env, userId) {
 
 // ---------- Page Admin en ligne (propriétaire uniquement) ----------
 function adminLoginPage(err) {
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Accès propriétaire</title><link rel="icon" type="image/png" href="/logo.png"><style>body{font-family:system-ui,Arial,sans-serif;background:#12141a;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}.box{background:#1e212b;padding:30px;border-radius:18px;max-width:380px;width:92vw}input{width:100%;padding:13px;border-radius:10px;border:2px solid #333744;background:#12141a;color:#fff;font-size:16px;box-sizing:border-box}button{width:100%;padding:13px;border-radius:10px;border:none;background:#00c853;color:#fff;font-weight:800;font-size:15px;margin-top:12px;cursor:pointer}.err{background:#3a2323;color:#ffb3b5;padding:10px;border-radius:10px;font-size:13.5px;margin-bottom:12px;${err ? '' : 'display:none'}</style></head><body><div class="box"><img src="/logo.png" alt="Logo" style="width:64px;height:64px;border-radius:14px;object-fit:cover"><h1 style="font-size:20px">Accès propriétaire</h1><p style="color:#9aa3b2;font-size:14px">Zone réservée à l'administrateur de Pilote Réseau : branchez ici Meta, TikTok, l'IA et SasPay.</p><div class="err">${err || ''}</div><form method="POST" action="/admin/login"><label style="font-size:13px;font-weight:700">Code administrateur</label><input type="password" name="key" required placeholder="Votre code secret"><button type="submit">Ouvrir mon administration →</button></form><p style="font-size:12px;color:#5b6472"><a href="/" style="color:#9aa3b2">← Retour au site</a></p></div></body></html>`;
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Accès propriétaire</title><link rel="icon" type="image/png" href="/logo.png"><style>body{font-family:system-ui,Arial,sans-serif;background:#12141a;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}.box{background:#1e212b;padding:30px;border-radius:18px;max-width:380px;width:92vw}input{width:100%;padding:13px;border-radius:10px;border:2px solid #333744;background:#12141a;color:#fff;font-size:16px;box-sizing:border-box}button{width:100%;padding:13px;border-radius:10px;border:none;background:#00c853;color:#fff;font-weight:800;font-size:15px;margin-top:12px;cursor:pointer}.err{background:#3a2323;color:#ffb3b5;padding:10px;border-radius:10px;font-size:13.5px;margin-bottom:12px;${err ? '' : 'display:none'}</style></head><body><div class="box"><img src="/logo.png" alt="Logo" style="width:64px;height:64px;border-radius:14px;object-fit:cover"><h1 style="font-size:20px">Accès propriétaire</h1><p style="color:#9aa3b2;font-size:14px">Zone réservée à l'administrateur de Pilote Réseau : branchez ici Meta, TikTok, l'IA et SasPay.</p><div class="err">${err || ''}</div><form method="POST" action="/admin/login"><label style="font-size:13px;font-weight:700">Email du propriétaire</label><input type="email" name="email" required placeholder="votre@email.com" autocomplete="username"><label style="font-size:13px;font-weight:700;display:block;margin-top:12px">Votre code</label><input type="password" name="password" required placeholder="Votre code d'accès" autocomplete="current-password"><button type="submit">Ouvrir mon administration →</button></form><p style="font-size:12px;color:#5b6472"><a href="/" style="color:#9aa3b2">← Retour au site</a></p></div></body></html>`;
 }
-async function adminToken(env, exp) { return exp + '.' + await hmacHex(env.ADMIN_KEY, 'admin:' + exp); }
+const adminSecret = (env) => env.ADMIN_KEY || env.TOKEN_ENCRYPTION_KEY || '';
+const ownerEmail = (env) => String(env.OWNER_EMAIL || '').trim().toLowerCase();
+async function adminToken(env, exp) { return exp + '.' + await hmacHex(adminSecret(env), 'admin:' + exp); }
 async function hasAdminSession(req, env) {
-  if (!env.ADMIN_KEY) return false;
+  if (!adminSecret(env)) return false;
   const m = /(?:^|;\s*)pr_admin=([0-9]+\.[a-f0-9]{64})/.exec(req.headers.get('Cookie') || '');
   if (!m) return false;
   const exp = Number(m[1].split('.')[0]);
   if (!exp || exp < Date.now()) return false;
   return m[1] === await adminToken(env, exp);
 }
-const isAdminReq = async (req, env) => Boolean(env.ADMIN_KEY) && (req.headers.get('x-admin-key') === env.ADMIN_KEY || await hasAdminSession(req, env));
+const isAdminReq = async (req, env) => {
+  if (env.ADMIN_KEY && req.headers.get('x-admin-key') === env.ADMIN_KEY) return true;
+  if (await hasAdminSession(req, env)) return true;
+  const a = await auth(req, env); // le propriétaire connecté sur la plateforme est admin
+  return Boolean(a && ownerEmail(env) && a.login === ownerEmail(env));
+};
 function adminPanelPage() {
   return ADMIN_PANEL_HTML;
 }
 async function handleAdminPage(req, env, url) {
   const p = url.pathname;
   if (p === '/admin' && req.method === 'GET') {
-    if (!env.ADMIN_KEY) return new Response(adminLoginPage('Le code administrateur n\'est pas encore défini sur Cloudflare. Ajoutez le secret ADMIN_KEY (Worker → Settings → Variables and Secrets), puis revenez.'), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    if (!adminSecret(env)) return new Response(adminLoginPage('Accès pas encore activé côté Cloudflare : ajoutez le secret TOKEN_ENCRYPTION_KEY (Worker → Settings → Variables and Secrets), puis revenez.'), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     if (await hasAdminSession(req, env)) return Response.redirect(url.origin + '/admin/panel', 302);
-    return new Response(adminLoginPage(url.searchParams.get('err') ? 'Code incorrect. Réessayez.' : ''), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    return new Response(adminLoginPage(url.searchParams.get('err') ? 'Email ou code incorrect. Réessayez.' : ''), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   }
   if (p === '/admin/login' && req.method === 'POST') {
     const form = await req.formData().catch(() => null);
+    const email = form ? String(form.get('email') || '').trim().toLowerCase() : '';
+    const password = form ? String(form.get('password') || '') : '';
     const key = form ? String(form.get('key') || '') : '';
-    if (!env.ADMIN_KEY || key !== env.ADMIN_KEY) return Response.redirect(url.origin + '/admin?err=1', 302);
+    let okLogin = Boolean(env.ADMIN_KEY && key && key === env.ADMIN_KEY);
+    if (!okLogin && email && password && ownerEmail(env) && email === ownerEmail(env)) {
+      const user = await db.findUserByLogin(env.DB, email);
+      if (user) okLogin = await verifyPassword(password, user);
+    }
+    if (!okLogin || !adminSecret(env)) return Response.redirect(url.origin + '/admin?err=1', 302);
     const exp = Date.now() + 12 * 3600 * 1000;
     const token = await adminToken(env, exp);
     return new Response('', { status: 302, headers: { Location: url.origin + '/admin/panel', 'Set-Cookie': 'pr_admin=' + token + '; HttpOnly; Path=/; SameSite=Strict; Max-Age=43200' } });
