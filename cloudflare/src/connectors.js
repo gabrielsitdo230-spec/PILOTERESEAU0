@@ -18,7 +18,7 @@ export const PROVIDERS = {
     env: { appId: 'META_APP_ID', appSecret: 'META_APP_SECRET', verifyToken: 'META_VERIFY_TOKEN', whatsappToken: 'WHATSAPP_TOKEN' } },
   tiktok: { label: 'TikTok — Commentaires', icon: '🎵', fields: ['clientKey', 'clientSecret', 'webhookSecret'], secrets: ['clientSecret', 'webhookSecret'],
     env: { clientKey: 'TIKTOK_CLIENT_KEY', clientSecret: 'TIKTOK_CLIENT_SECRET', webhookSecret: 'TIKTOK_WEBHOOK_SECRET' } },
-  ai: { label: 'Intelligence Artificielle', icon: '🧠', fields: ['apiKey'], secrets: ['apiKey'], env: { apiKey: 'LLM_API_KEY' } },
+  ai: { label: 'Intelligence Artificielle', icon: '🧠', fields: ['apiKey', 'baseUrl', 'model'], secrets: ['apiKey'], env: { apiKey: 'LLM_API_KEY', baseUrl: 'LLM_BASE_URL', model: 'LLM_MODEL' } },
   saspay: { label: 'SasPay — Paiements', icon: '💳', fields: ['secretKey', 'webhookSecret'], secrets: ['secretKey', 'webhookSecret'],
     env: { secretKey: 'SASPAY_SECRET_KEY', webhookSecret: 'SASPAY_WEBHOOK_SECRET' } },
 };
@@ -30,7 +30,7 @@ function keyBytes(env) {
 }
 export const encryptionReady = (env) => Boolean(keyBytes(env));
 
-async function encryptValue(env, text) {
+export async function encryptValue(env, text) {
   const raw = keyBytes(env);
   if (!raw) { const e = new Error('TOKEN_ENCRYPTION_KEY manquant côté Cloudflare : impossible de garder un secret en sécurité. Ajoutez ce secret (voir guide) puis réessayez.'); e.code = 'NO_ENCRYPTION'; throw e; }
   const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);

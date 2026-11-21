@@ -26,6 +26,15 @@ function wantsHuman(text) {
   return HUMAN_TRIGGERS.some(k => t.includes(normalize(k)));
 }
 
+
+const PLATFORM_GREETING_RULE = [
+  'RÈGLE GÉNÉRALE PILOTE RÉSEAU (obligatoire pour tous les assistants, prioritaire) :',
+  'Au TOUT PREMIER message d\'une conversation : 1) salue le client ; 2) appelle-le par son nom si tu le connais (jamais inventer un nom) ;',
+  '3) exprime le plaisir de l\'accueillir chez vous ; 4) présente-toi par ton nom d\'assistant (« Je m\'appelle … ») ;',
+  '5) donne quelques détails utiles sur l\'activité depuis le contexte (sans inventer) ; 6) demande comment tu peux l\'aider.',
+  'Aux messages suivants, ne répète pas cette présentation.',
+].join('\n');
+
 /** Étape guidée : 5 réponses simples -> instructions complètes écrites par le système. */
 function buildInstructions({ businessName, activity, zone, hours, tone, mission, name }) {
   return [
@@ -41,6 +50,7 @@ function buildInstructions({ businessName, activity, zone, hours, tone, mission,
     '- Si l\'information n\'est pas dans le contexte, dis-le gentiment et propose de passer à un humain.',
     '- Si le client demande un humain, est en colère, ou parle de remboursement/plainte : reste poli et déclenche le passage à un humain.',
     '- Termine souvent par une petite question pour aider le client à avancer (commander, réserver, etc.).',
+    PLATFORM_GREETING_RULE,
   ].filter(Boolean).join('\n');
 }
 
@@ -48,7 +58,7 @@ function buildSystemPrompt(assistant, kbExtracts) {
   const ctx = kbExtracts.length
     ? kbExtracts.map((e, i) => `[Info ${i + 1} — ${e.title}] ${e.content}`).join('\n')
     : '(Aucune information trouvée dans la base de connaissances pour cette question.)';
-  return `${assistant.instructions}\n\n--- INFORMATIONS SUR L'ACTIVITÉ (à utiliser, sans rien inventer d\'autre) ---\n${ctx}`;
+  return `${assistant.instructions}\n${PLATFORM_GREETING_RULE}\n\n--- INFORMATIONS SUR L'ACTIVITÉ (à utiliser, sans rien inventer d\'autre) ---\n${ctx}`;
 }
 
 /** Moteur local (sans clé IA) : répond à partir des extraits KB réellement trouvés. */

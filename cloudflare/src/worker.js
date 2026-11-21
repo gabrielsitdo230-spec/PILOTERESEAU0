@@ -117,7 +117,7 @@ const ADMIN_PANEL_HTML = `<!DOCTYPE html><html lang="fr"><head><meta charset="UT
 <p class="note">📋 Adresses à déclarer chez les fournisseurs :<br>Webhook Meta : <b id="cb-meta"></b><br>Retour connexion Meta : <b id="cb-metaoauth"></b><br>Webhook TikTok : <b id="cb-tiktok"></b><br>Webhook SasPay : <b id="cb-saspay"></b></p>
 <div id="cartes">⏳ Chargement…</div></div><div class="toast" id="toast"></div>
 <script>
-const CHAMPS={meta:{appId:"App ID",appSecret:"App Secret",verifyToken:"Jeton de vérification (Verify Token)",whatsappToken:"Jeton WhatsApp permanent"},tiktok:{clientKey:"Client Key",clientSecret:"Client Secret",webhookSecret:"Secret du webhook"},ai:{apiKey:"Clé API de l'IA"},saspay:{secretKey:"Clé secrète SasPay",webhookSecret:"Secret du webhook SasPay"}};
+const CHAMPS={meta:{appId:"App ID",appSecret:"App Secret",verifyToken:"Jeton de vérification (Verify Token)",whatsappToken:"Jeton WhatsApp permanent"},tiktok:{clientKey:"Client Key",clientSecret:"Client Secret",webhookSecret:"Secret du webhook"},ai:{apiKey:"Clé API de l'IA",baseUrl:"Adresse du fournisseur (Gemini : https://generativelanguage.googleapis.com/v1beta/openai/)",model:"Modèle (Gemini : gemini-2.5-flash)"},saspay:{secretKey:"Clé secrète SasPay",webhookSecret:"Secret du webhook SasPay"}};
 const $=id=>document.getElementById(id);
 function esc(t){const d=document.createElement('div');d.textContent=t||'';return d.innerHTML}
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',4500)}
@@ -132,7 +132,7 @@ async function chargerStats(){ const z=$('stats'); try{ const d=await api('/api/
  const pay=(s.paymentsByStatus||[]); const paye=pay.find(x=>x.status==='paid')||{}; const attente=pay.find(x=>x.status==='pending')||{};
  const canaux={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok'};
  const parReseau=['whatsapp','facebook','instagram','tiktok'].map(c=>{ const a=(s.assistantsByChannel||[]).find(x=>x.channel===c)||{}; const co=(s.accountsByChannel||[]).find(x=>x.channel===c)||{}; return '<tr><td><b>'+canaux[c]+'</b></td><td>'+(a.n||0)+' assistant(s) ('+(a.actifs||0)+' actif)</td><td>'+(co.n||0)+' compte(s) connecté(s)</td></tr>'; }).join('');
- const grille=[['👥 Utilisateurs inscrits',s.users||0],['🤖 Assistants créés',(s.assistants||0)+' ('+( s.assistantsActifs||0)+' actifs)'],['💬 Messages répondus par l\'IA',s.messagesIA||0],['🪙 Crédits en circulation',(s.credits||{}).enCirculation||0],['✅ Crédits accordés',(s.credits||{}).accordes||0],['🔥 Crédits consommés',(s.credits||{}).consommes||0],['💰 Paiements réussis',(paye.n||0)+' · '+((paye.usd||0))+' $'],['⏳ Paiements en attente',attente.n||0]];
+ const grille=[['👥 Utilisateurs inscrits',s.users||0],['🤖 Assistants créés',(s.assistants||0)+' ('+( s.assistantsActifs||0)+' actifs)'],['💬 Messages répondus par IA',s.messagesIA||0],['🪙 Crédits en circulation',(s.credits||{}).enCirculation||0],['✅ Crédits accordés',(s.credits||{}).accordes||0],['🔥 Crédits consommés',(s.credits||{}).consommes||0],['💰 Paiements réussis',(paye.n||0)+' · '+((paye.usd||0))+' $'],['⏳ Paiements en attente',attente.n||0]];
  const liste=(titre,items,fmt)=> items&&items.length? '<div class="carte"><h3 style="margin-top:0">'+titre+'</h3>'+items.map(fmt).join('')+'</div>':'';
  z.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">'+grille.map(([l,v])=>'<div class="carte" style="margin:0;text-align:center"><div style="font-size:26px;font-weight:900;color:#5314d1">'+esc(String(v))+'</div><div class="note">'+esc(l)+'</div></div>').join('')+'</div>'
  +'<div class="carte"><h3 style="margin-top:0">📡 Par réseau</h3><table>'+parReseau+'</table></div>'
@@ -143,6 +143,138 @@ async function chargerStats(){ const z=$('stats'); try{ const d=await api('/api/
  }catch(e){ z.innerHTML='⚠️ '+esc(e.message); } }
 chargerStats(); charger();
 </script></body></html>`;
+
+
+
+// ---------- Connexion des comptes par CHAQUE client (OAuth officiel) ----------
+const META_SCOPES = ['pages_show_list', 'pages_messaging', 'pages_manage_metadata',
+  'instagram_basic', 'instagram_manage_messages', 'instagram_manage_comments',
+  'business_management', 'whatsapp_business_management', 'whatsapp_business_messaging'].join(',');
+const TIKTOK_SCOPES = ['user.info.basic', 'video.list', 'comment.list', 'comment.edit'].join(',');
+const GRAPH = 'https://graph.facebook.com/v21.0';
+
+function pageRetourConnexion(titre, message, ok = true) {
+  return new Response(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${titre}</title><link rel="icon" type="image/png" href="/logo.png"><style>body{font-family:system-ui,Arial,sans-serif;background:#f8f9ff;color:#131c28;display:grid;place-items:center;min-height:100vh;margin:0}.box{background:#fff;border:1px solid #e2dcf5;padding:30px;border-radius:18px;max-width:420px;width:92vw;text-align:center}a{display:inline-block;margin-top:14px;background:#5314d1;color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:800}</style></head><body><div class="box"><img src="/logo.png" style="width:64px;height:64px;border-radius:14px;object-fit:cover"><h1 style="font-size:20px">${ok ? '🎉' : '⚠️'} ${titre}</h1><p style="color:#6b6880;font-size:14.5px">${message}</p><a href="/?page=assistants">← Retour à mes assistants</a></div></body></html>`,
+    { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+async function nouvelEtatOAuth(env, a, provider) {
+  const state = randHex(16);
+  await env.PILOTE_KV.put('oauth:' + state, JSON.stringify({ ws: a.workspaceId, provider }), { expirationTtl: 900 });
+  return state;
+}
+async function lireEtatOAuth(env, state) {
+  if (!state || !env.PILOTE_KV) return null;
+  try { const v = JSON.parse(await env.PILOTE_KV.get('oauth:' + state) || 'null'); await env.PILOTE_KV.delete('oauth:' + state); return v; } catch { return null; }
+}
+
+async function handleSocial(req, env, url) {
+  const p = url.pathname;
+  // --- Démarrage (depuis le compte du client, jeton de session exigé) ---
+  if (p.startsWith('/api/connect/') && p.endsWith('/start') && req.method === 'GET') {
+    const a = await needAuth(req, env);
+    if (!a) return json({ error: 'Connectez-vous à votre compte Pilote Réseau.' }, 401);
+    const provider = p.split('/')[3];
+    if (provider === 'meta') {
+      const cfg = await connectors.get(env, 'meta');
+      if (!cfg.appId || !cfg.appSecret) return json({ configured: false, message: "Meta n'est pas encore activé par l'administrateur de Pilote Réseau. Revenez bientôt : aucun réglage n'est demandé de votre côté." });
+      const state = await nouvelEtatOAuth(env, a, 'meta');
+      const u = new URL('https://www.facebook.com/v21.0/dialog/oauth');
+      u.searchParams.set('client_id', cfg.appId);
+      u.searchParams.set('redirect_uri', url.origin + '/auth/meta/callback');
+      u.searchParams.set('scope', META_SCOPES);
+      u.searchParams.set('response_type', 'code');
+      u.searchParams.set('state', state);
+      return json({ configured: true, url: u.toString() });
+    }
+    if (provider === 'tiktok') {
+      const cfg = await connectors.get(env, 'tiktok');
+      if (!cfg.clientKey || !cfg.clientSecret) return json({ configured: false, message: "TikTok n'est pas encore activé par l'administrateur de Pilote Réseau. Revenez bientôt." });
+      const state = await nouvelEtatOAuth(env, a, 'tiktok');
+      const u = new URL('https://www.tiktok.com/v2/auth/authorize/');
+      u.searchParams.set('client_key', cfg.clientKey);
+      u.searchParams.set('scope', TIKTOK_SCOPES);
+      u.searchParams.set('response_type', 'code');
+      u.searchParams.set('redirect_uri', url.origin + '/auth/tiktok/callback');
+      u.searchParams.set('state', state);
+      return json({ configured: true, url: u.toString() });
+    }
+    return json({ error: 'Réseau inconnu.' }, 400);
+  }
+  // --- Mes comptes connectés ---
+  if (p === '/api/connect/accounts' && req.method === 'GET') {
+    const a = await needAuth(req, env);
+    if (!a) return json({ error: 'Connectez-vous à votre compte Pilote Réseau.' }, 401);
+    const accounts = (await db.listConnectedAccounts(env.DB, a.workspaceId)).map(x => ({ id: x.id, channel: x.channel, name: x.display_name, status: x.status }));
+    return json({ accounts });
+  }
+  if (p.startsWith('/api/connect/accounts/') && req.method === 'DELETE') {
+    const a = await needAuth(req, env);
+    if (!a) return json({ error: 'Connectez-vous à votre compte Pilote Réseau.' }, 401);
+    const okDel = await db.deleteConnectedAccount(env.DB, a.workspaceId, decodeURIComponent(p.split('/')[4] || ''));
+    return okDel ? json({ ok: true }) : json({ error: 'Compte introuvable.' }, 404);
+  }
+  // --- Retour Meta ---
+  if (p === '/auth/meta/callback' && req.method === 'GET') {
+    const etat = await lireEtatOAuth(env, url.searchParams.get('state'));
+    const code = url.searchParams.get('code');
+    if (!etat || etat.provider !== 'meta') return pageRetourConnexion('Connexion expirée', 'Le lien de connexion a expiré (15 minutes). Retournez sur Pilote Réseau et cliquez à nouveau sur Connecter.', false);
+    if (!code) return pageRetourConnexion('Connexion annulée', "Vous avez fermé la fenêtre Facebook sans autoriser. Rien n'a été connecté.", false);
+    try {
+      const cfg = await connectors.get(env, 'meta');
+      const redirect = url.origin + '/auth/meta/callback';
+      const ech = async (params) => { const u = new URL(GRAPH + '/oauth/access_token'); Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v)); const r = await fetch(u); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error?.message || 'Meta a refusé la connexion.'); return d.access_token; };
+      let token = await ech({ client_id: cfg.appId, client_secret: cfg.appSecret, redirect_uri: redirect, code });
+      try { token = await ech({ grant_type: 'fb_exchange_token', client_id: cfg.appId, client_secret: cfg.appSecret, fb_exchange_token: token }); } catch { /* jeton court accepté */ }
+      const graph = async (path, params = {}) => { const u = new URL(GRAPH + path); Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v)); u.searchParams.set('access_token', token); const r = await fetch(u); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error?.message || 'Lecture Meta impossible.'); return d; };
+      const sauves = [];
+      const pages = await graph('/me/accounts', { fields: 'id,name,access_token,instagram_business_account{id,username}' });
+      for (const pg of pages.data || []) {
+        const jetonPage = await connectors.encryptValue(env, pg.access_token || token);
+        await db.saveConnectedAccount(env.DB, etat.ws, { channel: 'facebook', externalId: pg.id, displayName: pg.name, tokenEncrypted: jetonPage });
+        sauves.push('Facebook : ' + pg.name);
+        if (pg.instagram_business_account?.id) {
+          await db.saveConnectedAccount(env.DB, etat.ws, { channel: 'instagram', externalId: pg.instagram_business_account.id, displayName: '@' + (pg.instagram_business_account.username || pg.name), tokenEncrypted: jetonPage });
+          sauves.push('Instagram : @' + (pg.instagram_business_account.username || pg.name));
+        }
+      }
+      try {
+        const wabas = await graph('/me/whatsapp_business_accounts', { fields: 'id,name' });
+        for (const w of wabas.data || []) {
+          const tels = await graph('/' + w.id + '/phone_numbers', { fields: 'id,display_phone_number,verified_name' });
+          for (const t of tels.data || []) {
+            await db.saveConnectedAccount(env.DB, etat.ws, { channel: 'whatsapp', externalId: t.id, displayName: (t.verified_name || 'WhatsApp') + ' ' + (t.display_phone_number || ''), tokenEncrypted: await connectors.encryptValue(env, token) });
+            sauves.push('WhatsApp : ' + (t.display_phone_number || t.id));
+          }
+        }
+      } catch { /* WhatsApp pas encore rattaché à ce compte : Facebook/Instagram suffisent */ }
+      if (!sauves.length) return pageRetourConnexion('Aucune Page trouvée', "Facebook n'a renvoyé aucune Page. Créez d'abord une Page Facebook pour votre entreprise, puis reconnectez-la ici.", false);
+      return pageRetourConnexion('Comptes connectés !', 'Connecté(s) : ' + sauves.join(' · ') + '. Vos assistants reliés à ces réseaux passent en vert.', true);
+    } catch (e) { return pageRetourConnexion('Connexion Meta échouée', String(e.message || e).slice(0, 220), false); }
+  }
+  // --- Retour TikTok ---
+  if (p === '/auth/tiktok/callback' && req.method === 'GET') {
+    const etat = await lireEtatOAuth(env, url.searchParams.get('state'));
+    const code = url.searchParams.get('code');
+    if (!etat || etat.provider !== 'tiktok') return pageRetourConnexion('Connexion expirée', 'Le lien TikTok a expiré (15 minutes). Cliquez à nouveau sur Connecter TikTok.', false);
+    if (!code) return pageRetourConnexion('Connexion annulée', "Vous avez fermé TikTok sans autoriser. Rien n'a été connecté.", false);
+    try {
+      const cfg = await connectors.get(env, 'tiktok');
+      const body = new URLSearchParams({ client_key: cfg.clientKey, client_secret: cfg.clientSecret, code, grant_type: 'authorization_code', redirect_uri: url.origin + '/auth/tiktok/callback' });
+      const r = await fetch('https://open.tiktokapis.com/v2/oauth/token/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) throw new Error('TikTok a refusé la connexion.');
+      let nom = 'TikTok';
+      try {
+        const ui = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username', { headers: { Authorization: 'Bearer ' + d.access_token } });
+        const uj = await ui.json().catch(() => ({}));
+        if (uj.data?.user?.username) nom = '@' + uj.data.user.username; else if (uj.data?.user?.display_name) nom = uj.data.user.display_name;
+      } catch { /* nom générique accepté */ }
+      await db.saveConnectedAccount(env.DB, etat.ws, { channel: 'tiktok', externalId: d.open_id || ('tk_' + etat.ws), displayName: nom, tokenEncrypted: await connectors.encryptValue(env, d.access_token) });
+      return pageRetourConnexion('TikTok connecté !', 'Compte ' + nom + ' relié. Votre assistant TikTok répondra aux commentaires (fonction soumise à validation TikTok).', true);
+    } catch (e) { return pageRetourConnexion('Connexion TikTok échouée', String(e.message || e).slice(0, 220), false); }
+  }
+  return null;
+}
 
 
 async function handleApi(req, env, url) {
@@ -207,9 +339,15 @@ async function handleApi(req, env, url) {
       if (c.balance <= 0) return json({ error: 'Plus de crédits. Rechargez pour que votre assistant continue de répondre.' }, 402);
     }
     const kbRows = await db.allKnowledge(env.DB, a.workspaceId);
-    const assistant = { instructions: b.assistant?.instructions || buildInstructions({ businessName: b.assistant?.businessName, mission: b.assistant?.mission }), businessName: b.assistant?.businessName };
-    const aiKey = env.LLM_API_KEY || (await connectors.get(env, 'ai')).apiKey;
-    const result = await generateReply({ ...env, LLM_API_KEY: aiKey }, { assistant, userText: b.message, history: b.history || [], kbRows });
+    let assistant = { instructions: b.assistant?.instructions || buildInstructions({ businessName: b.assistant?.businessName, mission: b.assistant?.mission }), businessName: b.assistant?.businessName, name: b.assistant?.name || '' };
+    if (b.assistantId) {
+      const trouve = (await db.listAssistants(env.DB, a.workspaceId)).find(x => x.id === b.assistantId);
+      if (trouve) assistant = { ...trouve, instructions: trouve.instructions || assistant.instructions, name: trouve.name };
+    }
+    const aiCfg = await connectors.get(env, 'ai');
+    const aiKey = env.LLM_API_KEY || aiCfg.apiKey;
+    const aiEnv = { ...env, LLM_API_KEY: aiKey, LLM_BASE_URL: aiCfg.baseUrl || env.LLM_BASE_URL, LLM_MODEL: aiCfg.model || env.LLM_MODEL };
+    const result = await generateReply(aiEnv, { assistant, userText: b.message, history: b.history || [], kbRows, contactName: b.contactName || a.name || '' });
     let balance = (await db.getCredits(env.DB, a.workspaceId)).balance;
     if (!isPlayground && !result.handoff) { if (await db.consumeCredit(env.DB, a.workspaceId)) balance -= 1; }
     return json({ ...result, creditsUsed: !isPlayground && !result.handoff ? 1 : 0, balance, playground: isPlayground });
@@ -415,7 +553,7 @@ async function handleApi(req, env, url) {
         }
         if (provider === 'ai') {
           if (!v.apiKey) return json({ ok: false, message: "Collez d'abord la clé de l'IA." });
-          const r = await fetch((env.LLM_BASE_URL || 'https://api.openai.com/v1') + '/models', { headers: { Authorization: 'Bearer ' + v.apiKey } });
+          const r = await fetch((v.baseUrl || env.LLM_BASE_URL || 'https://api.openai.com/v1') + '/models', { headers: { Authorization: 'Bearer ' + v.apiKey } });
           return json(r.ok ? { ok: true, message: 'IA connectée ✔️ Le vrai modèle répond.' } : { ok: false, message: 'Le fournisseur IA refuse cette clé (HTTP ' + r.status + ').' });
         }
         if (provider === 'saspay') {
@@ -437,6 +575,10 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
       const r = await handleAdminPage(req, env, url);
+      if (r) return r;
+    }
+    if (url.pathname.startsWith('/auth/') || url.pathname.startsWith('/api/connect/')) {
+      const r = await handleSocial(req, env, url);
       if (r) return r;
     }
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/webhooks/') || url.pathname.startsWith('/worker/')) {

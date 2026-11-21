@@ -112,6 +112,18 @@ export async function setPaymentStatus(DB, ref, status, creditsGranted = 0) {
 }
 
 // ---------- Comptes sociaux & messages ----------
+export async function saveConnectedAccount(DB, ws, { channel, externalId, displayName, tokenEncrypted, expiresAt }) {
+  const r = await DB.prepare(`INSERT INTO connected_accounts(id, workspace_id, channel, external_id, display_name, access_token_encrypted, token_expires_at, status)
+    VALUES (?,?,?,?,?,?,?, 'connected')
+    ON CONFLICT(channel, external_id) DO UPDATE SET workspace_id = excluded.workspace_id, display_name = excluded.display_name,
+      access_token_encrypted = excluded.access_token_encrypted, token_expires_at = excluded.token_expires_at, status = 'connected'`)
+    .bind(id('acc_'), ws, channel, String(externalId), displayName || '', tokenEncrypted, expiresAt || null).run();
+  return r.meta.changes > 0;
+}
+export async function deleteConnectedAccount(DB, ws, accountId) {
+  const r = await DB.prepare('DELETE FROM connected_accounts WHERE id = ? AND workspace_id = ?').bind(accountId, ws).run();
+  return r.meta.changes > 0;
+}
 export async function listConnectedAccounts(DB, ws) {
   const r = await DB.prepare('SELECT id, channel, external_id, display_name, status FROM connected_accounts WHERE workspace_id = ?').bind(ws).all();
   return r.results || [];

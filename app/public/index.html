@@ -507,10 +507,21 @@ dashboard(){
 
 assistants(){
   document.getElementById('page-contenu').innerHTML = `
+  <div class="carte" style="margin-bottom:14px"><h3 style="margin-top:0">🔗 Connecter mes réseaux</h3>
+    <p style="font-size:13.5px;color:var(--gris);margin:0 0 12px">Reliez VOS comptes : vous serez redirigé vers le réseau officiel, vous autorisez, et c'est terminé. Pilote Réseau ne voit jamais votre mot de passe.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-principal btn-petit" onclick="connecterMonReseau('meta')">🟢 Connecter WhatsApp</button>
+      <button class="btn btn-principal btn-petit" onclick="connecterMonReseau('meta')">🔵 Connecter Facebook (compte + Page)</button>
+      <button class="btn btn-principal btn-petit" onclick="connecterMonReseau('meta')">🟣 Connecter Instagram</button>
+      <button class="btn btn-contour btn-petit" onclick="connecterMonReseau('tiktok')">🎵 Connecter TikTok</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--gris);margin:10px 0 0">ℹ️ WhatsApp, Facebook et Instagram passent par la même autorisation Meta : si vous connectez un bouton, vos Page, Instagram et numéro WhatsApp détectés se relient d'un coup.</p>
+    <div id="mes-connexions" style="margin-top:10px"><p style="font-size:13px;color:var(--gris)">⏳ Vérification de vos comptes…</p></div>
+  </div>
   <button class="btn btn-principal btn-grand" onclick="lancerCreation()">➕ Créer mon assistant</button>
   <div style="height:14px"></div>
   <div id="liste-assistants"><p style="color:var(--gris)">⏳ Chargement…</p></div>`;
-  chargerAssistants('liste-assistants', false);
+  chargerAssistants('liste-assistants', false); chargerMesConnexions();
 },
 
 boite(){
@@ -796,7 +807,7 @@ function ligneAssistantReel(a){
     <label class="switch" title="Activer / Pause"><input type="checkbox" ${a.active?'checked':''} onchange="basculerAssistantReel('${a.id}',this.checked)"><span class="tr"></span></label>
     <button class="btn btn-contour btn-petit" onclick="supprimerAssistant('${a.id}')">🗑</button>
   </div>
-  ${!a.connected ? `<p style="font-size:12.5px;color:var(--gris);margin:-4px 0 10px">🔗 Pas encore relié à ${r.nom} : la connexion se fera ici, en un clic, dès que le compte est prêt. En attendant, testez-le et apprenez-lui votre entreprise (📚 Savoirs).</p>` : ''}`;
+  ${!a.connected ? `<p style="font-size:12.5px;color:var(--gris);margin:-4px 0 10px">🔗 Pas encore relié à ${r.nom}. <button class="btn btn-principal btn-petit" onclick="connecterMonReseau('${a.channel === 'tiktok' ? 'tiktok' : 'meta'}')">Connecter mon compte ${r.nom}</button></p>` : ''}`;
 }
 async function basculerAssistantReel(id, on){
   try {
@@ -909,19 +920,9 @@ async function validerPaiement(){ const p=PAIEMENT; fermerModal(); toast(`📲 D
 }
 
 async function connecterReel(){
-  try{
-    if(CREA.reseau==='tiktok'){
-      const st=await (await fetch('/api/tiktok/status')).json();
-      if(st.live){ window.location.href='/auth/tiktok/start'; return; }
-    } else if(CREA.reseau!=='whatsapp'){
-      const st=await (await fetch('/api/meta/status')).json();
-      if(st.live){ window.location.href='/auth/meta/start'; return; }
-    }
-    const r=await fetch('/api/connect/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:CREA.reseau})});
-    const d=await r.json(); if(!r.ok) throw new Error(d.error||'Erreur connexion');
-    toast(d.simulated?'🔌 Connecté en mode démo — pipeline actif (envois réels avec vos clés Meta)':'🔌 Compte connecté !');
-    terminerCreation();
-  }catch(e){ toast('⚠️ '+e.message); terminerCreation(); }
+  if(CREA.reseau === 'tiktok'){ connecterMonReseau('tiktok'); }
+  else { connecterMonReseau('meta'); }
+  terminerCreation();
 }
 /* Démarrage */
 majCredits();

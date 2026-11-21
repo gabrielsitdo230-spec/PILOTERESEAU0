@@ -27,6 +27,7 @@ class FakeDB {
   async batch(stmts) { for (const s of stmts) await s.run(); }
   insert(table, cols, vals) {
     const row = {}; cols.forEach((c, i) => row[c] = vals[i]);
+    if (table === 'connected_accounts') row.status = 'connected';
     if (table === 'payments' && this.t.payments.some(r => r.provider_ref && r.provider_ref === row.provider_ref)) return { meta: { changes: 0 } };
     this.t[table].push(row); return { meta: { changes: 1 } };
   }
@@ -164,3 +165,59 @@ ok('Tableau de bord : assistants comptés', statsData.stats.assistants >= 1);
 ok('Tableau de bord : détail par réseau (WhatsApp)', (statsData.stats.assistantsByChannel || []).some(x => x.channel === 'whatsapp' && x.n >= 1));
 ok('Tableau de bord : crédits en circulation suivis', typeof statsData.stats.credits.enCirculation === 'number');
 ok('Tableau de bord : paiements par statut présents', Array.isArray(statsData.stats.paymentsByStatus));
+
+// --- Connexion des comptes par le client (OAuth) ---
+const startNo = await call('GET', '/api/connect/meta/start');
+ok('Connexion Meta sans session client : 401', startNo.status === 401);
+const startMeta = await call('GET', '/api/connect/meta/start', null, T);
+ok('Connexion Meta : adresse officielle Facebook générée', startMeta.status === 200 && startMeta.data.configured === true && startMeta.data.url.includes('facebook.com/v21.0/dialog/oauth'));
+ok('Connexion Meta : droits WhatsApp demandés', decodeURIComponent(startMeta.data.url).includes('whatsapp_business_messaging'));
+const startTk = await call('GET', '/api/connect/tiktok/start', null, T);
+ok('Connexion TikTok : adresse officielle générée', startTk.status === 200 && startTk.data.configured === true && startTk.data.url.includes('tiktok.com/v2/auth/authorize'));
+const etatMeta = new URL(startMeta.data.url).searchParams.get('state');
+// Faux Meta simulé : échange du code + liste des Pages
+const fetchOrig = globalThis.fetch;
+globalThis.fetch = async (u) => {
+  const url = String(u);
+  if (url.includes('/oauth/access_token')) return new Response(JSON.stringify({ access_token: ['jeton','factice'].join('-') }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  if (url.includes('/me/accounts')) return new Response(JSON.stringify({ data: [{ id: 'page_123', name: 'Boutique Test', access_token: ['jeton','page'].join('-'), instagram_business_account: { id: 'ig_9', username: 'boutique.test' } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  if (url.includes('whatsapp_business_accounts')) return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  return fetchOrig(u);
+};
+const cbMeta = await worker.fetch(new Request('http://local/auth/meta/callback?code=faux&state=' + etatMeta), env);
+const cbHtml = await cbMeta.text();
+globalThis.fetch = fetchOrig;
+ok('Retour Meta : page de succès affichée au client', cbMeta.status === 200 && cbHtml.includes('Comptes connectés'));
+const mesComptes = await call('GET', '/api/connect/accounts', null, T);
+ok('Comptes du client : Page Facebook enregistrée', mesComptes.data.accounts.some(a => a.channel === 'facebook' && a.name === 'Boutique Test'));
+ok('Comptes du client : Instagram enregistré en même temps', mesComptes.data.accounts.some(a => a.channel === 'instagram'));
+const storedAcc = DB.t.connected_accounts.find(a => a.channel === 'facebook');
+ok('Jeton client chiffré, jamais en clair', Boolean(storedAcc) && !String(storedAcc.access_token_encrypted).includes('jeton-page'));
+const cbExpire = await worker.fetch(new Request('http://local/auth/meta/callback?code=faux&state=' + etatMeta), env);
+ok('Lien de connexion à usage unique (rejeu refusé)', (await cbExpire.text()).includes('expiré'));
+await call('POST', '/api/assistants', { name: 'Boutique Test — Facebook', channel: 'facebook', mission: 'Répondre' }, T);
+const assistantsApres = await call('GET', '/api/assistants', null, T);
+ok('Assistant Facebook devient « connecté » tout seul', assistantsApres.data.assistants.some(a => a.channel === 'facebook' && a.connected === true));
+ok('Assistant WhatsApp reste « à connecter » (honnête)', assistantsApres.data.assistants.some(a => a.channel === 'whatsapp' && a.connected === false));
+
+// --- Règle générale d'accueil (tous les assistants) ---
+const accueil = await call('POST', '/api/chat', { assistantId: ast.data.assistant.id, message: 'Bonjour', contactName: 'Marie' }, T);
+ok('Premier message : salutation + nom du client', accueil.data.reply.includes('Bonjour Marie'));
+ok('Premier message : plaisir + présentation par le nom', accueil.data.reply.includes("C'est un plaisir") && accueil.data.reply.includes("Je m'appelle"));
+ok('Premier message : demande comment aider', accueil.data.reply.includes('comment puis-je vous aider'));
+const suite = await call('POST', '/api/chat', { assistantId: ast.data.assistant.id, message: 'La robe rouge coûte combien ?', history: [{ from: 'client', text: 'Bonjour' }, { from: 'assistant', text: 'Bonjour Marie' }] }, T);
+ok('Message suivant : pas de re-présentation', !suite.data.reply.includes("Je m'appelle"));
+
+// --- Réponses précises (pas de blocs copiés) ---
+const precise = await call('POST', '/api/chat', { assistantId: ast.data.assistant.id, message: 'La robe rouge coûte combien ?', history: [{ from: 'client', text: 'Bonjour' }] }, T);
+ok('Réponse précise : le prix exact, rien d’autre', precise.data.reply.includes('La robe rouge coûte 45 dollars.') && !precise.data.reply.includes('Aussi :'));
+ok('Réponse courte et conversationnelle (< 300 caractères)', precise.data.reply.length < 300);
+const horsSujet = await call('POST', '/api/chat', { assistantId: ast.data.assistant.id, message: 'Vous vendez des avions ?', history: [{ from: 'client', text: 'Bonjour' }] }, T);
+ok('Hors base de connaissances : honnête, rien inventé', horsSujet.data.reply.includes("je ne veux rien inventer") || horsSujet.data.reply.includes("je n'ai pas cette information"));
+
+// --- Tableaux de prix présentés proprement ---
+await call('POST', '/api/knowledge', { type: 'text', title: 'Tarifs', content: 'Formation| Prix Initiation informatique| 10 000 FC Cours Word| 15 000 FC Cours Excel| 20 000 FC' }, T);
+const prixTest = await call('POST', '/api/chat', { assistantId: ast.data.assistant.id, message: 'Quels sont vos prix ?', history: [{ from: 'client', text: 'Bonjour' }] }, T);
+ok('Prix en tableau -> liste propre à puces', prixTest.data.reply.includes('•') && prixTest.data.reply.includes('10 000 FC'));
+const excelTest = await call('POST', '/api/chat', { assistantId: ast.data.assistant.id, message: 'Combien coûte Excel ?', history: [{ from: 'client', text: 'Bonjour' }] }, T);
+ok('Question ciblée Excel -> seulement Excel en tête', excelTest.data.reply.split('\n').filter(l => l.startsWith('•')).length === 1);
